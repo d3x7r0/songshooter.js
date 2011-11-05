@@ -43,6 +43,7 @@ button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0;}
 textarea{overflow:auto;vertical-align:top;}
 input:invalid,textarea:invalid{background-color:#f0dddd;}
 table{border-collapse:collapse;border-spacing:0;}
+html,body{background:#202020;color:#eeeeec;}
 footer{text-align:right;font-style:italic;}
 #screen{display:block;width:96em;height:54em;}
 #controls{min-height:1.3em;}#controls ul{padding:0;display:inline;list-style:none;}#controls ul li{display:inline;}
