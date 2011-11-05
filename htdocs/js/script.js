@@ -9,18 +9,21 @@ var MCG_JS = (function() {
         rate,
         frameBufferLength;
 
-    var canvas, ctx;
+    var canvas,
+        ctx;
 
-    var bd, kick_det, vu;
+    var bd,
+        kick_det,
+        vu;
 
-    var ftimer = 0,
-        beats = [],
+    var ftimer   = 0,
+        beats    = [],
         canvasBG = "rgba(255,255,255)";
 
-    var MAX_BEATS = 15,
-        COLOR_MAX = 1.0,
-        RGB_MAX = 200.0,
-        RGB_MIN = 40.0;
+    var MAX_BEATS = 30,
+        COLOR_MAX = 1.5,
+        RGB_MAX   = 200.0,
+        RGB_MIN   = 20.0;
 
     function onLoadedMetadata(e) {
         channels          = audioElement[0].mozChannels;
@@ -54,17 +57,23 @@ var MCG_JS = (function() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Reset the color
-        ctx.fillStyle = "rgba(0,0,0,0.1)";
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
 
-        for (var i = 0; i < fft.spectrum.length; i++ ) {
+        for (var i = 0; i < fft.spectrum.length && i*2 <= canvas.width/2; i++ ) {
             // multiply spectrum by a zoom value
-            magnitude = fft.spectrum[i] * canvas.height;
+            magnitude = fft.spectrum[i] * canvas.height * 6.0;
 
             // Draw rectangle bars for each frequency bin
-            ctx.fillRect(i * 4, canvas.height/2, 3, -magnitude);
+            ctx.fillRect(i * 2, canvas.height/2, 1, -magnitude);
+            ctx.fillRect(canvas.width - (i * 2), canvas.height/2, 1, -magnitude);
 
-            ctx.fillRect(i * 4, canvas.height/2, 3, magnitude);
+            ctx.fillRect(i * 2, canvas.height/2, 1, magnitude);
+            ctx.fillRect(canvas.width - (i * 2), canvas.height/2, 1, magnitude);
         }
+
+        // Wash out the background a bit to make it less shocking
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         var timestamp = event.time;
 
@@ -105,14 +114,13 @@ var MCG_JS = (function() {
 
         for (var k in color) {
             if (color.hasOwnProperty(k)) {
-                // TODO: figure out the true maximum value to remove this
                 if (color[k] > COLOR_MAX) {
                     color[k] = COLOR_MAX;
                 } else if (color[k] < 0.0) {
                     color[k] = 0.0;
                 }
 
-                color[k] = Math.round(color[k]*RGB_MAX/COLOR_MAX);
+                color[k] = Math.round(color[k]*(RGB_MAX-RGB_MIN)/COLOR_MAX)+RGB_MIN;
             }
         }
 
