@@ -1,0 +1,6 @@
+[submodule "dsp.js"]
+	path = dsp.js
+	url = https://github.com/corbanbrook/dsp.js.git
+[submodule "processing-js"]
+	path = processing-js
+	url = https://github.com/jeresig/processing-js.git
