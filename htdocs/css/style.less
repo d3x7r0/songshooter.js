@@ -15,9 +15,27 @@ footer { text-align: right; font-style: italic; }
     height: (96em/@ratio);
 }
 
-#controls audio {
-    width: 100%;
-    height: 3em;
+#controls {
+    min-height: 1.3em;
+
+    ul {
+        padding: 0;
+        display: inline;
+        list-style: none;
+
+        li {
+            display: inline;
+        }
+    }
+
+    .score {
+        text-align: right;
+
+        .value {
+            display: inline-block;
+            min-width: 96em/12*2;
+        }
+    }
 }
 
 @import url('grid.less');

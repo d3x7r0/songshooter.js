@@ -28,9 +28,11 @@
                     <p>Please ensure you're using a <acronym title="Firefox >= 4, IE >= 9 or Chrome">modern javascript-enabled browser</acronym></p>
                 </canvas>
                 <div id="controls">
-                    <audio controls>
-                        Your browser does not support HTML5 audio
-                    </audio>
+                    <ul class="column grid_8" style="display: none;">
+                        <li class="pause"><a href="#pause">Pause Game</a></li>
+                        <li class="restart"><a href="#restart">Restart Game</a></li>
+                    </ul>
+                    <p class="score column grid_4" style="display: none;"><span class="title">Score:</span> <span class="value">0</span></p>
                 </div>
             </div>
             <footer class="row">
@@ -39,7 +41,6 @@
         </div> <!--! end of #container -->
 
         <script src="js/libs/ender.js"></script>
-        <script src="js/libs/processing.js"></script>
         <script src="js/libs/dsp.js"></script>
         <script src="js/libs/beatdetektor.js"></script>
 
