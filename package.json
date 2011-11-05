@@ -1,0 +1,12 @@
+{
+    "name"         : "mcg_js"
+  , "version"      : "0.0.1"
+  , "author"       : "Luis \"Dextro\" Nabais <dextro@gmail.com>"
+  , "private"      : true
+  , "dependencies" : {
+      "ender"      : "0.6.x"
+    , "jeesh"      : "0.0.6"
+    , "uglify-js"  : "1.0.x"
+    , "less"       : "1.1.x"
+  }
+}
