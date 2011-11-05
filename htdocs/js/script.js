@@ -13,13 +13,14 @@ var MCG_JS = (function() {
 
     var bd, kick_det, vu;
 
-    var ftimer = 0;
+    var ftimer = 0,
+        beats = [],
+        canvasBG = "rgba(255,255,255)";
 
-    var beats = [];
-
-    var canvasBG = "rgba(255,255,255)";
-
-    var MAX_BEATS = 30;
+    var MAX_BEATS = 15,
+        COLOR_MAX = 1.0,
+        RGB_MAX = 200.0,
+        RGB_MIN = 40.0;
 
     function onLoadedMetadata(e) {
         channels          = audioElement[0].mozChannels;
@@ -53,14 +54,16 @@ var MCG_JS = (function() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Reset the color
-        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillStyle = "rgba(0,0,0,0.1)";
 
         for (var i = 0; i < fft.spectrum.length; i++ ) {
             // multiply spectrum by a zoom value
-            magnitude = fft.spectrum[i] * canvas.height * 5.0;
+            magnitude = fft.spectrum[i] * canvas.height;
 
             // Draw rectangle bars for each frequency bin
-            ctx.fillRect(i * 4, canvas.height, 3, -magnitude);
+            ctx.fillRect(i * 4, canvas.height/2, 3, -magnitude);
+
+            ctx.fillRect(i * 4, canvas.height/2, 3, magnitude);
         }
 
         var timestamp = event.time;
@@ -89,8 +92,6 @@ var MCG_JS = (function() {
         }
     }
 
-    var COLOR_MAX = 1.5;
-
     function changeBackground(value) {
         var color = {
             red   : 0.0,
@@ -111,7 +112,7 @@ var MCG_JS = (function() {
                     color[k] = 0.0;
                 }
 
-                color[k] = Math.round(color[k]*255.0/COLOR_MAX);
+                color[k] = Math.round(color[k]*RGB_MAX/COLOR_MAX);
             }
         }
 
@@ -136,8 +137,9 @@ var MCG_JS = (function() {
         kick_det = new BeatDetektor.modules.vis.BassKick();
         vu       = new BeatDetektor.modules.vis.VU();
 
-        ftimer = 0;
-        beats  = [];
+        ftimer   = 0;
+        beats    = [];
+        canvasBG = "rgba(255,255,255)";
 
         audioElement.attr('src', file);
 
