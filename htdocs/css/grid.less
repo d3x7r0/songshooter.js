@@ -1,0 +1,41 @@
+/* ================ */
+/* = The 1Kb Grid = */     /* 12 columns, 60 pixels each, with 20 pixel gutter */
+/* ================ */
+
+html,body {
+    font: 10px/1.3em Helvetica, Arial, sans-serif;
+}
+
+body {
+    margin: 2em 0 0 0;
+}
+
+.grid_1 { width:6em; }
+.grid_2 { width:14em; }
+.grid_3 { width:22em; }
+.grid_4 { width:30em; }
+.grid_5 { width:38em; }
+.grid_6 { width:46em; }
+.grid_7 { width:54em; }
+.grid_8 { width:62em; }
+.grid_9 { width:70em; }
+.grid_10 { width:78em; }
+.grid_11 { width:86em; }
+.grid_12 { width:94em; }
+
+.column {
+    margin: 0 1em;
+    overflow: hidden;
+    float: left;
+    display: inline;
+}
+.row {
+    width: 96em;
+    margin: 0 auto;
+    overflow: hidden;
+}
+.row .row {
+    margin: 0 -1em;
+    width: auto;
+    display: inline-block;
+}
