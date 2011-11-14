@@ -3,6 +3,42 @@
  *
  **/
 
+// Cross browser, backward compatible solution
+// Original from: https://gist.github.com/1114293#file_anim_loop_x.js
+(function(window, Date) {
+    // feature testing
+    var raf = window.mozRequestAnimationFrame    ||
+              window.webkitRequestAnimationFrame ||
+              window.msRequestAnimationFrame     ||
+              window.oRequestAnimationFrame      ||
+              function(loop, element) {
+                  // fallback to setTimeout
+                  window.setTimeout(loop, 1000 / 60);
+              };
+
+    window.animLoop = function(render, element) {
+        var running, lastFrame = +new Date;
+        function loop(now) {
+            if (running !== false) {
+                raf(loop, element);
+
+                // Make sure to use a valid time, since:
+                // - Chrome 10 doesn't return it at all
+                // - setTimeout returns the actual timeout
+                now = now && now > 1E4 ? now : +new Date;
+                var deltaT = now - lastFrame;
+                // do not render frame when deltaT is too high
+                if (deltaT < 160) {
+                    running = render( deltaT, now );
+                }
+                lastFrame = now;
+            }
+        }
+        loop();
+    };
+})(window, Date);
+
+
 var MCG_JS = (function() {
     var audioElement,
         channels,
@@ -18,12 +54,64 @@ var MCG_JS = (function() {
 
     var ftimer   = 0,
         beats    = [],
-        canvasBG = "rgba(255,255,255)";
+        canvasBG = { red: 255, green: 255, blue: 255 },
+        spectrum = [];
 
     var MAX_BEATS = 30,
         COLOR_MAX = 1.5,
         RGB_MAX   = 200.0,
         RGB_MIN   = 20.0;
+
+    var frames          = 0,
+        fps_last_update = 0;
+        fps             = 0;
+
+    function repaint(delta, now) {
+        // Clear the canvas before drawing spectrum
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+
+        // Paint the background color
+        ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Reset the color
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+
+        for (var i = 0, k = 0; k < spectrum.length && i*2 <= canvas.width/2; i++, k = k + 2 ) {
+            // multiply spectrum by a zoom value
+            magnitude = spectrum[k] * canvas.height * 6.0;
+
+            // Draw rectangle bars for each frequency bin
+            var p = i * 2 - 1;
+            ctx.fillRect(p, canvas.height/2, 1, -magnitude);
+            ctx.fillRect(canvas.width - p, canvas.height/2, 1, -magnitude);
+
+            ctx.fillRect(p, canvas.height/2, 1, magnitude);
+            ctx.fillRect(canvas.width - p, canvas.height/2, 1, magnitude);
+        }
+
+        // Wash out the background a bit to make it less shocking
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // TODO: make a switch do hide the FPS counting
+        // FPS Counting
+        frames++;
+
+        if (now - fps_last_update > 1000) {
+            fps_last_update = now;
+            fps = frames;
+            frames = 0;
+        }
+
+        // Reset the color
+        ctx.fillStyle = "rgb(0,0,0)";
+
+        // Print the FPS
+        ctx.fillText(fps + " fps", 10, 10);
+
+        // TODO: stop this eventually
+    }
 
     function onLoadedMetadata(e) {
         channels          = audioElement[0].mozChannels;
@@ -33,6 +121,8 @@ var MCG_JS = (function() {
         fft = new FFT(frameBufferLength / channels, rate);
 
         audioElement[0].play();
+
+        animLoop(repaint, canvas);
     }
 
     // Taken from: http://wiki.mozilla.org/Audio_Data_API
@@ -49,31 +139,7 @@ var MCG_JS = (function() {
 
         fft.forward(signal);
 
-        // Clear the canvas before drawing spectrum
-        ctx.clearRect(0,0, canvas.width, canvas.height);
-
-        // Paint the background color
-        ctx.fillStyle = canvasBG;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Reset the color
-        ctx.fillStyle = "rgba(0,0,0,0.2)";
-
-        for (var i = 0; i < fft.spectrum.length && i*2 <= canvas.width/2; i++ ) {
-            // multiply spectrum by a zoom value
-            magnitude = fft.spectrum[i] * canvas.height * 6.0;
-
-            // Draw rectangle bars for each frequency bin
-            ctx.fillRect(i * 2, canvas.height/2, 1, -magnitude);
-            ctx.fillRect(canvas.width - (i * 2), canvas.height/2, 1, -magnitude);
-
-            ctx.fillRect(i * 2, canvas.height/2, 1, magnitude);
-            ctx.fillRect(canvas.width - (i * 2), canvas.height/2, 1, magnitude);
-        }
-
-        // Wash out the background a bit to make it less shocking
-        ctx.fillStyle = "rgba(255,255,255,0.3)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        spectrum = fft.spectrum;
 
         var timestamp = event.time;
 
@@ -103,14 +169,10 @@ var MCG_JS = (function() {
 
     function changeBackground(value) {
         var color = {
-            red   : 0.0,
-            green : 0.0,
-            blue  : 0.0
+            red   : -COLOR_MAX + 2.0 * value,
+            green :  COLOR_MAX * Math.sin(value),
+            blue  :  COLOR_MAX - 2.0 * value
         };
-
-        color.red   = -COLOR_MAX + 2.0 * value;
-        color.blue  =  COLOR_MAX - 2.0 * value;
-        color.green =  COLOR_MAX * Math.sin(value);
 
         for (var k in color) {
             if (color.hasOwnProperty(k)) {
@@ -124,7 +186,7 @@ var MCG_JS = (function() {
             }
         }
 
-        canvasBG ='rgb(' + color.red + ', ' + color.green + ', ' + color.blue + ')';
+        canvasBG = color;
     }
 
     function setup(file) {
