@@ -66,9 +66,12 @@ var MCG_JS = (function() {
         fps_last_update = 0;
         fps             = 0;
 
+    var show_fps = false,
+        running  = false;
+
     function repaint(delta, now) {
         // Clear the canvas before drawing spectrum
-        ctx.clearRect(0,0, canvas.width, canvas.height);
+//        ctx.clearRect(0,0, canvas.width, canvas.height);
 
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
@@ -94,7 +97,9 @@ var MCG_JS = (function() {
         ctx.fillStyle = "rgba(255,255,255,0.3)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // TODO: make a switch do hide the FPS counting
+        // Reset the color
+        ctx.fillStyle = "rgb(0,0,0)";
+
         // FPS Counting
         frames++;
 
@@ -104,11 +109,10 @@ var MCG_JS = (function() {
             frames = 0;
         }
 
-        // Reset the color
-        ctx.fillStyle = "rgb(0,0,0)";
-
-        // Print the FPS
-        ctx.fillText(fps + " fps", 10, 10);
+        if (show_fps) {
+            // Print the FPS
+            ctx.fillText(fps + " fps", 10, 10);
+        }
 
         // TODO: stop this eventually
     }
@@ -122,12 +126,19 @@ var MCG_JS = (function() {
 
         audioElement[0].play();
 
-        animLoop(repaint, canvas);
+        if (!running) {
+            animLoop(repaint, canvas);
+            running = true;
+        }
     }
 
-    // Taken from: http://wiki.mozilla.org/Audio_Data_API
     function audioAvailable(event) {
-        var fb         = event.frameBuffer,
+        process(event.frameBuffer, event.time);
+    }
+
+    // Inspired by: http://wiki.mozilla.org/Audio_Data_API
+    function process(frameBuffer, time) {
+        var fb         = frameBuffer,
             signal     = new Float32Array(fb.length / channels),
             magnitude;
 
@@ -141,7 +152,7 @@ var MCG_JS = (function() {
 
         spectrum = fft.spectrum;
 
-        var timestamp = event.time;
+        var timestamp = time;
 
         bd.process(timestamp, fft.spectrum);
 
@@ -163,11 +174,11 @@ var MCG_JS = (function() {
             }
             average = average/beats.length;
 
-            changeBackground(average);
+            calculateBackground(average);
         }
     }
 
-    function changeBackground(value) {
+    function calculateBackground(value) {
         var color = {
             red   : -COLOR_MAX + 2.0 * value,
             green :  COLOR_MAX * Math.sin(value),
@@ -201,6 +212,7 @@ var MCG_JS = (function() {
         if (!canvas) {
             canvas = document.getElementById('screen'),
             ctx    = canvas.getContext('2d');
+            ctx.font = "8px monospace";
         }
 
         bd       = new BeatDetektor();
@@ -238,14 +250,21 @@ var MCG_JS = (function() {
         e.preventDefault();
     }
 
+    function toggleFPS() {
+        return (show_fps = !show_fps);
+    }
+
     return {
-        fileDrop : fileDrop,
-        drag : drag
+        fileDrop  : fileDrop,
+        drag      : drag,
+        toggleFPS : toggleFPS
     };
 })();
 
 $.domReady(function() {
     $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
+    // TODO: make this a keyboard changeable option
+    MCG_JS.toggleFPS();
 });
 
 // Google Analytics
