@@ -45,7 +45,8 @@ input:invalid,textarea:invalid{background-color:#f0dddd;}
 table{border-collapse:collapse;border-spacing:0;}
 html,body{background:#202020;color:#eeeeec;}
 footer{text-align:right;font-style:italic;}
-#screen{display:block;width:96em;height:54em;}
+#main{overflow:visible;}
+#screen{display:block;width:96em;height:54em;background:#000;box-shadow:0 0 8px rgba(255, 255, 255, 0.3);}
 #controls{min-height:1.3em;}#controls ul{padding:0;display:inline;list-style:none;}#controls ul li{display:inline;}
 #controls .score{text-align:right;}#controls .score .value{display:inline-block;min-width:16em;}
 html,body{font:10px/1.3em Helvetica,Arial,sans-serif;}

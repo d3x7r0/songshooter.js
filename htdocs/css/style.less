@@ -12,12 +12,18 @@ html, body {
 
 footer { text-align: right; font-style: italic; }
 
+#main {
+    overflow: visible;
+}
+
 #screen {
     @ratio: 16/9;
 
     display: block;
     width: 96em;
     height: (96em/@ratio);
+    background: #000;
+    box-shadow: 0 0 8px rgba(255,255,255,0.3);
 }
 
 #controls {
