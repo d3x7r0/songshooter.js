@@ -127,8 +127,7 @@ var MCG_JS = (function() {
     var canvas,
         ctx;
 
-    var bd,
-        vu;
+    var bd;
 
     var ftimer   = 0,
         beats    = [],
@@ -136,9 +135,9 @@ var MCG_JS = (function() {
         canvasBG = { red: 255, green: 255, blue: 255 };
 
     var MAX_BEATS = 30,
-        COLOR_MAX = 1.5,
+        COLOR_MAX = 2.5,
         RGB_MAX   = 200.0,
-        RGB_MIN   = 20.0;
+        RGB_MIN   = 30.0;
 
     var frames          = 0,
         fps_last_update = 0;
@@ -190,6 +189,10 @@ var MCG_JS = (function() {
         }
 
         // TODO: stop this eventually
+        if (!running) {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+        }
+        return running;
     }
 
     function onLoadedMetadata(e) {
@@ -203,8 +206,8 @@ var MCG_JS = (function() {
         audioElement[0].play();
 
         if (!running) {
-            animLoop(repaint, canvas);
             running = true;
+            animLoop(repaint, canvas);
         }
     }
 
@@ -233,31 +236,27 @@ var MCG_JS = (function() {
 
         ftimer += bd.last_update;
         if (ftimer > 1.0/30.0) {
-            vu.process(bd);
+            var max = Math.max.apply(Math, spectrum) * 10.0;
 
-            var max = Math.max.apply(Math, vu.vu_levels);
-
-            if (beats.length >= MAX_BEATS) {
-                beats.shift();
-            }
-
+            beats.shift();
             beats.push(max);
 
             var average = 0;
-            for(var i = 0; i < beats.length; i++) {
+            for(var i = 0; i < MAX_BEATS; i++) {
                 average += beats[i];
             }
-            average = average/beats.length;
+            average = average/MAX_BEATS;
 
             calculateBackground(average);
         }
     }
 
     function calculateBackground(value) {
+        // TODO: rework the equations to make the COLOR_MAX variable work for the green value
         var color = {
-            red   : -COLOR_MAX + 2.0 * value,
-            green :  COLOR_MAX * Math.sin(value),
-            blue  :  COLOR_MAX - 2.0 * value
+            red   : 2.0 * value - COLOR_MAX,
+            green : COLOR_MAX * Math.sin(COLOR_MAX * value - Math.PI/(COLOR_MAX*2)),
+            blue  : COLOR_MAX - (COLOR_MAX * 0.5) * value
         };
 
         for (var k in color) {
@@ -275,14 +274,20 @@ var MCG_JS = (function() {
         canvasBG = color;
     }
 
+    function onAudioEnd(file) {
+        running = false;
+    }
+
     function setup(file) {
-        if (!audioElement) {
-            audioElement = $.create('<audio>').css('display', 'none');
-
-            $('#main').append(audioElement);
-
-            audioElement = $(audioElement);
+        if (audioElement) {
+            audioElement.remove();
         }
+
+        audioElement = $.create('<audio>').css('display', 'none');
+
+        $('#main').append(audioElement);
+
+        audioElement = $(audioElement);
 
         if (!canvas) {
             canvas   = document.getElementById('screen'),
@@ -291,7 +296,6 @@ var MCG_JS = (function() {
         }
 
         bd = new BeatDetektor();
-        vu = new BeatDetektor.modules.vis.VU();
 
         ftimer   = 0;
         beats    = [];
@@ -302,9 +306,14 @@ var MCG_JS = (function() {
             blue  : 255
         };
 
+        for (var i = 0; i < MAX_BEATS; i++) {
+            beats[i] = 0;
+        }
+
         audioElement.attr('src', file);
 
         audioElement.on('loadedmetadata', onLoadedMetadata);
+        audioElement.on('ended', onAudioEnd);
 
         // TODO: add some Web Audio API love here
         audioElement.on('MozAudioAvailable', audioAvailable);
