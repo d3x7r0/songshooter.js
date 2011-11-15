@@ -128,13 +128,12 @@ var MCG_JS = (function() {
         ctx;
 
     var bd,
-        kick_det,
         vu;
 
     var ftimer   = 0,
         beats    = [],
-        canvasBG = { red: 255, green: 255, blue: 255 },
-        spectrum = [];
+        spectrum = [],
+        canvasBG = { red: 255, green: 255, blue: 255 };
 
     var MAX_BEATS = 30,
         COLOR_MAX = 1.5,
@@ -149,9 +148,6 @@ var MCG_JS = (function() {
         running  = false;
 
     function repaint(delta, now) {
-        // Clear the canvas before drawing spectrum
-//        ctx.clearRect(0,0, canvas.width, canvas.height);
-
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -197,6 +193,7 @@ var MCG_JS = (function() {
     }
 
     function onLoadedMetadata(e) {
+        // TODO: add some Web Audio API love here
         channels          = audioElement[0].mozChannels;
         rate              = audioElement[0].mozSampleRate;
         frameBufferLength = audioElement[0].mozFrameBufferLength;
@@ -217,6 +214,7 @@ var MCG_JS = (function() {
 
     // Inspired by: http://wiki.mozilla.org/Audio_Data_API
     function process(frameBuffer, time) {
+        // TODO: stop cheating and do an FFT for each channel
         var fb         = frameBuffer,
             signal     = new Float32Array(fb.length / channels),
             magnitude;
@@ -231,13 +229,11 @@ var MCG_JS = (function() {
 
         spectrum = fft.spectrum;
 
-        var timestamp = time;
-
-        bd.process(timestamp, fft.spectrum);
+        bd.process(time, fft.spectrum);
 
         ftimer += bd.last_update;
         if (ftimer > 1.0/30.0) {
-            vu.process(bd,ftimer);
+            vu.process(bd);
 
             var max = Math.max.apply(Math, vu.vu_levels);
 
@@ -289,18 +285,22 @@ var MCG_JS = (function() {
         }
 
         if (!canvas) {
-            canvas = document.getElementById('screen'),
-            ctx    = canvas.getContext('2d');
+            canvas   = document.getElementById('screen'),
+            ctx      = canvas.getContext('2d');
             ctx.font = "8px monospace";
         }
 
-        bd       = new BeatDetektor();
-        kick_det = new BeatDetektor.modules.vis.BassKick();
-        vu       = new BeatDetektor.modules.vis.VU();
+        bd = new BeatDetektor();
+        vu = new BeatDetektor.modules.vis.VU();
 
         ftimer   = 0;
         beats    = [];
-        canvasBG = "rgba(255,255,255)";
+        spectrum = [];
+        canvasBG = {
+            red   : 255,
+            green : 255,
+            blue  : 255
+        };
 
         audioElement.attr('src', file);
 
