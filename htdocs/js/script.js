@@ -38,6 +38,85 @@
     };
 })(window, Date);
 
+var DKeyboard = (function() {
+    var callbacks = {};
+
+    var KEYCODES = {
+            BKSP      : 8,
+            TAB       : 9,
+            ENTER     : 13,
+            SHIFT     : 16,
+            ALT       : 18,
+            PAUSE     : 19,
+            CAPS      : 20,
+            ESC       : 27,
+            SPACE     : 32,
+            PGUP      : 33,
+            PGDN      : 34,
+            HOME      : 36,
+            LEFT      : 37,
+            UP        : 38,
+            RIGHT     : 39,
+            DOWN      : 40,
+            PRTSC     : 44,
+            INS       : 45,
+            DEL       : 46
+        },
+        DEFAULT_THROTTLE_TIME = 500;
+
+    function register(key, callback, opts) {
+        var charCode = key;
+
+        opts = opts || {};
+
+        if (charCode.charCodeAt) {
+            charCode = charCode.charCodeAt();
+        }
+
+        if (!callbacks[charCode]) {
+            callbacks[charCode] = [];
+        }
+
+        var time = opts.time || DEFAULT_THROTTLE_TIME;
+
+        var cb = callback;
+        if (opts.debounce) {
+            cb = $.debounce(callback, time);
+        } else if(!opts.raw) {
+            cb = $.throttle(callback, time);
+        }
+
+        callbacks[charCode][callbacks[charCode].length] = {
+            callback : cb,
+            opts     : opts
+        }
+    }
+
+    function onKeyPress(e) {
+        var cbs = callbacks[e.keyCode];
+
+        if (cbs) {
+            $(cbs).each(function(cb) {
+                if (cb.opts.shift && !e.shiftKey) {
+                    return;
+                }
+
+                cb.callback(e);
+            });
+        }
+    }
+
+    (function init() {
+        $.domReady(function() {
+            $(document).addListener('keypress', onKeyPress);
+        });
+    })();
+
+    return {
+        KEYCODES : KEYCODES,
+        register : register
+    }
+})();
 
 var MCG_JS = (function() {
     var audioElement,
@@ -254,18 +333,19 @@ var MCG_JS = (function() {
         return (show_fps = !show_fps);
     }
 
+    (function init() {
+        $.domReady(function() {
+            $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
+            DKeyboard.register('L', toggleFPS, { shift : true });
+        });
+    })();
+
     return {
         fileDrop  : fileDrop,
         drag      : drag,
         toggleFPS : toggleFPS
     };
 })();
-
-$.domReady(function() {
-    $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
-    // TODO: make this a keyboard changeable option
-    MCG_JS.toggleFPS();
-});
 
 // Google Analytics
 var _gaq=[['_setAccount','UA-XXXXX-X'],['_trackPageview']]; // Change UA-XXXXX-X to be your site's ID
