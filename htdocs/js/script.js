@@ -125,7 +125,8 @@ var MCG_JS = (function() {
         frameBufferLength;
 
     var canvas,
-        ctx;
+        ctx,
+        canvas_offset;
 
     var bd;
 
@@ -171,6 +172,8 @@ var MCG_JS = (function() {
         ctx.fillStyle = "rgba(255,255,255,0.3)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        paintPlayer();
+
         // Reset the color
         ctx.fillStyle = "rgb(0,0,0)";
 
@@ -193,6 +196,17 @@ var MCG_JS = (function() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
         }
         return running;
+    }
+
+    function paintPlayer() {
+        var color = {
+            red   : 255 - canvasBG.red,
+            green : 255 - canvasBG.green,
+            blue  : 255 - canvasBG.blue
+        }
+
+        ctx.fillStyle = 'rgb(' + color.red + ',' + color.green + ',' + color.blue + ')';
+        ctx.fillRect(player.x, player.y, 5, 5);
     }
 
     function onLoadedMetadata(e) {
@@ -276,6 +290,7 @@ var MCG_JS = (function() {
 
     function onAudioEnd(file) {
         running = false;
+        $(canvas).css('cursor', 'none');
     }
 
     function setup(file) {
@@ -290,10 +305,13 @@ var MCG_JS = (function() {
         audioElement = $(audioElement);
 
         if (!canvas) {
-            canvas   = document.getElementById('screen'),
-            ctx      = canvas.getContext('2d');
-            ctx.font = "8px monospace";
+            canvas        = document.getElementById('screen'),
+            ctx           = canvas.getContext('2d');
+            ctx.font      = "8px monospace";
+            canvas_offset = $(canvas).offset()
         }
+
+        $(canvas).css('cursor', 'none');
 
         bd = new BeatDetektor();
 
@@ -309,6 +327,9 @@ var MCG_JS = (function() {
         for (var i = 0; i < MAX_BEATS; i++) {
             beats[i] = 0;
         }
+
+        // Reset the player position
+        resetPlayerPosition();
 
         audioElement.attr('src', file);
 
@@ -342,10 +363,29 @@ var MCG_JS = (function() {
         return (show_fps = !show_fps);
     }
 
+    var player = {
+        x : 0,
+        y : 0
+    }
+
+    function updatePlayerPosition(event) {
+        if (canvas_offset) {
+            player.x = event.pageX - canvas_offset.left;
+            player.y = event.pageY - canvas_offset.top;
+        }
+    }
+
+    function resetPlayerPosition(event) {
+        player.x = 5;
+        player.y = (canvas && canvas.height || 0)/2;
+    }
+
     (function init() {
         $.domReady(function() {
             $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
             DKeyboard.register('L', toggleFPS, { shift : true });
+
+            $('canvas').mousemove($.throttle(updatePlayerPosition)).mouseleave(resetPlayerPosition);
         });
     })();
 
