@@ -155,9 +155,9 @@ var MCG_JS = (function() {
         // Reset the color
         ctx.fillStyle = "rgba(0,0,0,0.2)";
 
-        for (var i = 0, k = 0; k < spectrum.length && i*2 <= canvas.width/2; i++, k = k + 2 ) {
+        for (var i = 0; i < spectrum.length && i*2 <= canvas.width/2; i++) {
             // multiply spectrum by a zoom value
-            magnitude = spectrum[k] * canvas.height * 6.0;
+            magnitude = spectrum[i] * canvas.height * 6.0;
 
             // Draw rectangle bars for each frequency bin
             var p = i * 2 - 1;
@@ -372,6 +372,9 @@ var MCG_JS = (function() {
         if (canvas_offset) {
             player.x = event.pageX - canvas_offset.left;
             player.y = event.pageY - canvas_offset.top;
+
+            player.x = player.x * canvas.width / $(canvas).width();
+            player.y = player.y * canvas.height / $(canvas).height();
         }
     }
 
@@ -385,7 +388,7 @@ var MCG_JS = (function() {
             $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
             DKeyboard.register('L', toggleFPS, { shift : true });
 
-            $('canvas').mousemove($.throttle(updatePlayerPosition)).mouseleave(resetPlayerPosition);
+            $('canvas').mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
         });
     })();
 
