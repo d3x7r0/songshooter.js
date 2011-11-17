@@ -144,7 +144,7 @@ var MCG_JS = (function() {
 
     function repaint(delta, now) {
         if (!running) {
-            canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
             return false;
         }
 
@@ -371,6 +371,11 @@ var MCG_JS = (function() {
         paused ? audioElement[0].pause() : audioElement[0].play();
     }
 
+    function abort() {
+        audioElement[0].pause();
+        onAudioEnd();
+    }
+
     (function init() {
         $.domReady(function() {
             $('html').on('drop', fileDrop).on('dragenter dragover', drag);
@@ -400,7 +405,9 @@ var MCG_JS = (function() {
         });
     })();
 
-    return {};
+    return {
+        abort : abort
+    };
 })();
 
 // Google Analytics
