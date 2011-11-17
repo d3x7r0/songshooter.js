@@ -238,10 +238,17 @@ var MCG_JS = (function() {
     }
 
     function onAudioEnd(file) {
+        finish();
+    }
+
+    function finish() {
         running = false;
         paused  = false;
 
-        $(canvas).css('cursor', 'none');
+        $(canvas).css('cursor', '');
+        $('#controls .ingame').hide();
+
+        audioElement.remove();
 
         worker.terminate();
     }
@@ -253,8 +260,7 @@ var MCG_JS = (function() {
 
     function setup(file) {
         if (running) {
-            onAudioEnd();
-            audioElement.remove();
+            finish();
         }
 
         audioElement = $.create('<audio>').css('display', 'none');
@@ -264,6 +270,7 @@ var MCG_JS = (function() {
         audioElement = $(audioElement);
 
         $(canvas).css('cursor', 'none');
+        $('#controls .ingame').show();
 
         worker = new Worker('js/worker.js');
         worker.addEventListener('message', onWorkerMessage);
@@ -378,9 +385,14 @@ var MCG_JS = (function() {
         audioElement[0].currentTime = 0;
     }
 
-    function abort() {
+    function abort(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
         audioElement[0].pause();
-        onAudioEnd();
+        finish();
     }
 
     (function init() {
@@ -400,8 +412,6 @@ var MCG_JS = (function() {
 
             $(canvas).mousemove(updatePlayerPosition).mouseleave(resetPlayerPosition);
 
-            $('#controls > *').show();
-
             $('#controls ul .quality').click(toggleQuality).find('a').append(' <span></span>')
                 .each(updateQualityIndicator);
 
@@ -411,11 +421,12 @@ var MCG_JS = (function() {
             $('#controls ul .pause').click(togglePause);
 
             $('#controls ul .restart').click(restart);
+
+            $('#controls ul .abort').click(abort);
         });
     })();
 
     return {
-        abort : abort
     };
 })();
 
