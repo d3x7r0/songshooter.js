@@ -251,13 +251,6 @@ var MCG_JS = (function() {
 
         audioElement = $(audioElement);
 
-        if (!canvas) {
-            canvas        = document.getElementById('screen'),
-            ctx           = canvas.getContext('2d');
-            ctx.font      = "8px monospace";
-            canvas_offset = $(canvas).offset()
-        }
-
         $(canvas).css('cursor', 'none');
 
         worker = new Worker('js/worker.js');
@@ -325,6 +318,12 @@ var MCG_JS = (function() {
 
         canvas.width  = (canvas.width != MAX_RESOLUTION) ? MAX_RESOLUTION : MAX_RESOLUTION/2;
         canvas.height = canvas.width / RATIO;
+
+        updateQualityIndicator(this);
+    }
+
+    function updateQualityIndicator(item) {
+        $(item).find('a span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
     }
 
     (function init() {
@@ -332,11 +331,17 @@ var MCG_JS = (function() {
             $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
             DKeyboard.register('L', toggleFPS, { shift : true });
 
-            $('canvas').mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
+            canvas        = $('#screen')[0],
+            ctx           = canvas.getContext('2d');
+            ctx.font      = "8px monospace";
+            canvas_offset = $(canvas).offset()
+
+            $(canvas).mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
 
             $('#controls > *').show();
 
-            $('#controls ul .quality').click(toggleQuality);
+            $('#controls ul .quality').click(toggleQuality).find('a').append(' <span></span>')
+                .each(updateQualityIndicator);
         });
     })();
 
