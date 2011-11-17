@@ -10,15 +10,18 @@ html, body {
     color: #eeeeec;
 }
 
-a {
+a:link,
+a:visited {
     color: #ececec;
     text-decoration: none;
-
-    &:hover,
-    &:active {
-        color: #666666;
-    }
 }
+
+a:hover,
+a:active,
+a:focus {
+    color: #666666;
+}
+
 
 footer { text-align: right; font-style: italic; }
 
