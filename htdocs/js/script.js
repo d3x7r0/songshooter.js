@@ -160,12 +160,12 @@ var MCG_JS = (function() {
             magnitude = spectrum[i] * buffer.height * 6.0;
 
             // Draw rectangle bars for each frequency bin
-            var p = i * 2 - 1;
-            ctx.fillRect(p, buffer.height/2, 1, -magnitude);
-            ctx.fillRect(buffer.width - p, buffer.height/2, 1, -magnitude);
+            var X      = i * 2 - 1,
+                Y      = buffer.height/2 - magnitude,
+                height = magnitude * 2;
 
-            ctx.fillRect(p, buffer.height/2, 1, magnitude);
-            ctx.fillRect(buffer.width - p, buffer.height/2, 1, magnitude);
+            ctx.fillRect(X, Y, 1, height);
+            ctx.fillRect(buffer.width - X, Y, 1, height);
         }
 
         // Wash out the background a bit to make it less shocking
