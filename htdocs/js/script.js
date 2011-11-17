@@ -132,7 +132,8 @@ var MCG_JS = (function() {
         fps             = 0;
 
     var show_fps = false,
-        running  = false;
+        running  = false,
+        paused   = false;
 
     var worker = null;
 
@@ -180,7 +181,16 @@ var MCG_JS = (function() {
 
         if (show_fps) {
             // Print the FPS
+            ctx.textAlign = "start";
+            ctx.font      = "8px monospace";
             ctx.fillText(fps + " fps", 10, 10);
+        }
+
+        if (paused) {
+            // Print paused if the game is paused
+            ctx.textAlign = "center";
+            ctx.font      = "16px monospace";
+            ctx.fillText("PAUSED", canvas.width/2, canvas.height/2);
         }
 
         if (!running) {
@@ -230,7 +240,10 @@ var MCG_JS = (function() {
 
     function onAudioEnd(file) {
         running = false;
+        paused  = false;
+
         $(canvas).css('cursor', 'none');
+
         worker.terminate();
     }
 
@@ -298,7 +311,7 @@ var MCG_JS = (function() {
     }
 
     function updatePlayerPosition(event) {
-        if (canvas_offset) {
+        if (!paused) {
             player.x = event.pageX - canvas_offset.left;
             player.y = event.pageY - canvas_offset.top;
 
@@ -308,17 +321,30 @@ var MCG_JS = (function() {
     }
 
     function resetPlayerPosition(event) {
-        player.x = 5;
-        player.y = (canvas && canvas.height || 0)/2;
+        if (!paused) {
+            player.x = 5;
+            player.y = canvas.height/2;
+        }
     }
 
     function toggleQuality(event) {
-        event.stopPropagation();
-        event.preventDefault();
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
 
-        canvas.width  = (canvas.width != MAX_RESOLUTION) ? MAX_RESOLUTION : MAX_RESOLUTION/2;
+        // Figure out if we're supposed to double or halve the resolution
+        var multiplier = (canvas.width != MAX_RESOLUTION) ? 2.0 : 0.5;
+
+        // change the canvas size
+        canvas.width  = canvas.width * multiplier;
         canvas.height = canvas.width / RATIO;
 
+        // update the player position
+        player.x = player.x * multiplier;
+        player.y = player.y * multiplier;
+
+        // update the quality indicator text
         updateQualityIndicator(this);
     }
 
@@ -326,14 +352,25 @@ var MCG_JS = (function() {
         $(item).find('a span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
     }
 
+    function togglePause(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        paused = !paused;
+
+        paused ? $('#screen').css('cursor', '') : $('#screen').css('cursor', 'none');
+        paused ? audioElement[0].pause() : audioElement[0].play();
+    }
+
     (function init() {
         $.domReady(function() {
-            $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
+            $('html').on('drop', fileDrop).on('dragenter dragover', drag);
             DKeyboard.register('L', toggleFPS, { shift : true });
 
             canvas        = $('#screen')[0],
             ctx           = canvas.getContext('2d');
-            ctx.font      = "8px monospace";
             canvas_offset = $(canvas).offset()
 
             $(canvas).mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
@@ -342,14 +379,15 @@ var MCG_JS = (function() {
 
             $('#controls ul .quality').click(toggleQuality).find('a').append(' <span></span>')
                 .each(updateQualityIndicator);
+
+            DKeyboard.register('K', toggleQuality, { shift : true });
+
+            DKeyboard.register(DKeyboard.KEYCODES.PAUSE, togglePause);
+            $('#controls ul .pause').click(togglePause);
         });
     })();
 
-    return {
-        fileDrop  : fileDrop,
-        drag      : drag,
-        toggleFPS : toggleFPS
-    };
+    return {};
 })();
 
 // Google Analytics
