@@ -49,7 +49,7 @@ a:hover,a:active,a:focus{color:#666666;}
 footer{text-align:right;font-style:italic;}
 #main{overflow:visible;}
 #screen{display:block;width:96em;height:54em;background:#000;box-shadow:0 0 8px rgba(255, 255, 255, 0.3);}
-#controls{margin-top:1em;min-height:1.3em;}#controls ul{padding:0;display:inline;list-style:none;}#controls ul li{display:inline;padding-right:0.5em;}
+#controls{margin-top:1em;min-height:1.3em;}#controls ul{padding:0;display:inline;list-style:none;}#controls ul li{display:inline;padding-right:0.6em;}
 #controls .score{text-align:right;}#controls .score .value{display:inline-block;min-width:16em;}
 html,body{font:10px/1.3em Helvetica,Arial,sans-serif;}
 body{margin:2em 0 0 0;}
