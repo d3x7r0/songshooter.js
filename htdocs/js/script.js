@@ -121,8 +121,10 @@ var DKeyboard = (function() {
 var MCG_JS = (function() {
     var audioElement,
         canvas,
-        ctx,
         canvas_offset;
+
+    var buffer,
+        ctx;
 
     var spectrum = [],
         canvasBG = { red: 255, green: 255, blue: 255 };
@@ -141,31 +143,36 @@ var MCG_JS = (function() {
         MAX_RESOLUTION  = 960;
 
     function repaint(delta, now) {
+        if (!running) {
+            canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+            return false;
+        }
+
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, buffer.width, buffer.height);
 
         // Reset the color
         ctx.fillStyle = "rgba(0,0,0,0.2)";
 
-        for (var i = 0; i < spectrum.length && i*2 <= canvas.width/2; i++) {
+        for (var i = 0; i < spectrum.length && i*2 <= buffer.width/2; i++) {
             // multiply spectrum by a zoom value
-            magnitude = spectrum[i] * canvas.height * 6.0;
+            magnitude = spectrum[i] * buffer.height * 6.0;
 
             // Draw rectangle bars for each frequency bin
             var p = i * 2 - 1;
-            ctx.fillRect(p, canvas.height/2, 1, -magnitude);
-            ctx.fillRect(canvas.width - p, canvas.height/2, 1, -magnitude);
+            ctx.fillRect(p, buffer.height/2, 1, -magnitude);
+            ctx.fillRect(buffer.width - p, buffer.height/2, 1, -magnitude);
 
-            ctx.fillRect(p, canvas.height/2, 1, magnitude);
-            ctx.fillRect(canvas.width - p, canvas.height/2, 1, magnitude);
+            ctx.fillRect(p, buffer.height/2, 1, magnitude);
+            ctx.fillRect(buffer.width - p, buffer.height/2, 1, magnitude);
         }
 
         // Wash out the background a bit to make it less shocking
         ctx.fillStyle = "rgba(255,255,255,0.3)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, buffer.width, buffer.height);
 
-        paintPlayer();
+        paintPlayer(ctx);
 
         // Reset the color
         ctx.fillStyle = "rgb(0,0,0)";
@@ -190,17 +197,14 @@ var MCG_JS = (function() {
             // Print paused if the game is paused
             ctx.textAlign = "center";
             ctx.font      = "16px monospace";
-            ctx.fillText("PAUSED", canvas.width/2, canvas.height/2);
+            ctx.fillText("PAUSED", buffer.width/2, buffer.height/2);
         }
 
-        if (!running) {
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-        }
-
-        return running;
+        // Copy from the offscreen buffer
+        canvas.getContext('2d').drawImage(buffer, 0, 0);
     }
 
-    function paintPlayer() {
+    function paintPlayer(ctx) {
         var color = {
             red   : 255 - canvasBG.red,
             green : 255 - canvasBG.green,
@@ -340,6 +344,9 @@ var MCG_JS = (function() {
         canvas.width  = canvas.width * multiplier;
         canvas.height = canvas.width / RATIO;
 
+        buffer.width  = canvas.width;
+        buffer.height = canvas.height;
+
         // update the player position
         player.x = player.x * multiplier;
         player.y = player.y * multiplier;
@@ -370,8 +377,14 @@ var MCG_JS = (function() {
             DKeyboard.register('L', toggleFPS, { shift : true });
 
             canvas        = $('#screen')[0],
-            ctx           = canvas.getContext('2d');
             canvas_offset = $(canvas).offset()
+
+            // Create the offscreen buffer
+            buffer = document.createElement('canvas'),
+            ctx    = buffer.getContext('2d');
+
+            buffer.width  = canvas.width;
+            buffer.height = canvas.height;
 
             $(canvas).mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
 
