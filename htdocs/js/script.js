@@ -120,25 +120,12 @@ var DKeyboard = (function() {
 
 var MCG_JS = (function() {
     var audioElement,
-        channels,
-        rate,
-        frameBufferLength;
-
-    var canvas,
+        canvas,
         ctx,
         canvas_offset;
 
-    var bd;
-
-    var ftimer   = 0,
-        beats    = [],
-        spectrum = [],
+    var spectrum = [],
         canvasBG = { red: 255, green: 255, blue: 255 };
-
-    var MAX_BEATS = 30,
-        COLOR_MAX = 2.5,
-        RGB_MAX   = 200.0,
-        RGB_MIN   = 30.0;
 
     var frames          = 0,
         fps_last_update = 0;
@@ -146,6 +133,8 @@ var MCG_JS = (function() {
 
     var show_fps = false,
         running  = false;
+
+    var worker = null;
 
     function repaint(delta, now) {
         // Paint the background color
@@ -191,10 +180,10 @@ var MCG_JS = (function() {
             ctx.fillText(fps + " fps", 10, 10);
         }
 
-        // TODO: stop this eventually
         if (!running) {
             ctx.clearRect(0,0,canvas.width,canvas.height);
         }
+
         return running;
     }
 
@@ -211,90 +200,45 @@ var MCG_JS = (function() {
 
     function onLoadedMetadata(e) {
         // TODO: add some Web Audio API love here
-        channels          = audioElement[0].mozChannels;
-        rate              = audioElement[0].mozSampleRate;
-        frameBufferLength = audioElement[0].mozFrameBufferLength;
+        var data = {
+            setup : true,
+            audio : {
+                channels          : audioElement[0].mozChannels,
+                rate              : audioElement[0].mozSampleRate,
+                frameBufferLength : audioElement[0].mozFrameBufferLength
+            }
+        }
 
-        fft = new FFT(frameBufferLength / channels, rate);
+        // Start the Worker
+        worker.postMessage(data);
 
         audioElement[0].play();
 
-        if (!running) {
-            running = true;
-            animLoop(repaint, canvas);
-        }
+        running = true;
+        animLoop(repaint, canvas);
     }
 
     function audioAvailable(event) {
-        process(event.frameBuffer, event.time);
-    }
-
-    // Inspired by: http://wiki.mozilla.org/Audio_Data_API
-    function process(frameBuffer, time) {
-        // TODO: stop cheating and do an FFT for each channel
-        var fb         = frameBuffer,
-            signal     = new Float32Array(fb.length / channels),
-            magnitude;
-
-        for (var i = 0, fbl = frameBufferLength / 2; i < fbl; i++ ) {
-            // Assuming interlaced stereo channels,
-            // need to split and merge into a stero-mix mono signal
-            signal[i] = (fb[2*i] + fb[2*i+1]) / 2;
-        }
-
-        fft.forward(signal);
-
-        spectrum = fft.spectrum;
-
-        bd.process(time, fft.spectrum);
-
-        ftimer += bd.last_update;
-        if (ftimer > 1.0/30.0) {
-            var max = Math.max.apply(Math, spectrum) * 10.0;
-
-            beats.shift();
-            beats.push(max);
-
-            var average = 0;
-            for(var i = 0; i < MAX_BEATS; i++) {
-                average += beats[i];
-            }
-            average = average/MAX_BEATS;
-
-            calculateBackground(average);
-        }
-    }
-
-    function calculateBackground(value) {
-        // TODO: rework the equations to make the COLOR_MAX variable work for the green value
-        var color = {
-            red   : 2.0 * value - COLOR_MAX,
-            green : COLOR_MAX * Math.sin(COLOR_MAX * value - Math.PI/(COLOR_MAX*2)),
-            blue  : COLOR_MAX - (COLOR_MAX * 0.5) * value
-        };
-
-        for (var k in color) {
-            if (color.hasOwnProperty(k)) {
-                if (color[k] > COLOR_MAX) {
-                    color[k] = COLOR_MAX;
-                } else if (color[k] < 0.0) {
-                    color[k] = 0.0;
-                }
-
-                color[k] = Math.round(color[k]*(RGB_MAX-RGB_MIN)/COLOR_MAX)+RGB_MIN;
-            }
-        }
-
-        canvasBG = color;
+        worker.postMessage({
+            frameBuffer : event.frameBuffer, 
+            time        : event.time
+        });
     }
 
     function onAudioEnd(file) {
         running = false;
         $(canvas).css('cursor', 'none');
+        worker.terminate();
+    }
+
+    function onWorkerMessage(event) {
+        canvasBG = event.data.canvasBG;
+        spectrum = event.data.spectrum;
     }
 
     function setup(file) {
-        if (audioElement) {
+        if (running) {
+            onAudioEnd();
             audioElement.remove();
         }
 
@@ -313,24 +257,13 @@ var MCG_JS = (function() {
 
         $(canvas).css('cursor', 'none');
 
-        bd = new BeatDetektor();
-
-        ftimer   = 0;
-        beats    = [];
-        spectrum = [];
-        canvasBG = {
-            red   : 255,
-            green : 255,
-            blue  : 255
-        };
-
-        for (var i = 0; i < MAX_BEATS; i++) {
-            beats[i] = 0;
-        }
+        worker = new Worker('js/worker.js');
+        worker.addEventListener('message', onWorkerMessage);
 
         // Reset the player position
         resetPlayerPosition();
 
+        // Load the audio file
         audioElement.attr('src', file);
 
         audioElement.on('loadedmetadata', onLoadedMetadata);
