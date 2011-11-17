@@ -368,6 +368,16 @@ var MCG_JS = (function() {
         return paused;
     }
 
+    function restart(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        // TODO: clear the score/ships
+        audioElement[0].currentTime = 0;
+    }
+
     function abort() {
         audioElement[0].pause();
         onAudioEnd();
@@ -399,6 +409,8 @@ var MCG_JS = (function() {
 
             DKeyboard.register(DKeyboard.KEYCODES.PAUSE, togglePause);
             $('#controls ul .pause').click(togglePause);
+
+            $('#controls ul .restart').click(restart);
         });
     })();
 
