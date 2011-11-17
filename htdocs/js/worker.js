@@ -7,8 +7,8 @@ importScripts('libs/dsp.js', 'libs/beatdetektor.js');
 
 var MAX_BEATS = 30,
     COLOR_MAX = 2.5,
-    RGB_MAX   = 240.0,
-    RGB_MIN   = 30.0;
+    RGB_MAX   = 250.0,
+    RGB_MIN   = 120.0;
 
 var bd,
     fft;

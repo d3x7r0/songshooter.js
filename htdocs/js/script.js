@@ -169,7 +169,7 @@ var MCG_JS = (function() {
         }
 
         // Wash out the background a bit to make it less shocking
-        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        ctx.fillStyle = "rgba(255,255,255,0.1)";
         ctx.fillRect(0, 0, buffer.width, buffer.height);
 
         paintPlayer(ctx);
@@ -388,7 +388,7 @@ var MCG_JS = (function() {
             buffer.width  = canvas.width;
             buffer.height = canvas.height;
 
-            $(canvas).mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
+            $(canvas).mousemove(updatePlayerPosition).mouseleave(resetPlayerPosition);
 
             $('#controls > *').show();
 
