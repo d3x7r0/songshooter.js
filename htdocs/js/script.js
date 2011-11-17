@@ -205,13 +205,8 @@ var MCG_JS = (function() {
     }
 
     function paintPlayer(ctx) {
-        var color = {
-            red   : 255 - canvasBG.red,
-            green : 255 - canvasBG.green,
-            blue  : 255 - canvasBG.blue
-        }
+        ctx.fillStyle   = '#000'
 
-        ctx.fillStyle = 'rgb(' + color.red + ',' + color.green + ',' + color.blue + ')';
         ctx.fillRect(player.x | 0, player.y | 0, 5, 5);
     }
 
