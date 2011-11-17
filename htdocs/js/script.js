@@ -352,11 +352,11 @@ var MCG_JS = (function() {
         player.y = player.y * multiplier;
 
         // update the quality indicator text
-        updateQualityIndicator(this);
+        updateQualityIndicator('#controls ul .quality');
     }
 
     function updateQualityIndicator(item) {
-        $(item).find('a span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
+        $(item).find('span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
     }
 
     function togglePause(event) {
@@ -369,6 +369,8 @@ var MCG_JS = (function() {
 
         paused ? $('#screen').css('cursor', '') : $('#screen').css('cursor', 'none');
         paused ? audioElement[0].pause() : audioElement[0].play();
+
+        return paused;
     }
 
     function abort() {
