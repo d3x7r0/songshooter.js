@@ -157,7 +157,7 @@ var MCG_JS = (function() {
 
         for (var i = 0; i < spectrum.length && i*2 <= buffer.width/2; i++) {
             // multiply spectrum by a zoom value
-            magnitude = spectrum[i] * buffer.height * 6.0;
+            magnitude = (spectrum[i] * buffer.height * 6.0) | 0;
 
             // Draw rectangle bars for each frequency bin
             var X      = i * 2 - 1,
@@ -212,7 +212,7 @@ var MCG_JS = (function() {
         }
 
         ctx.fillStyle = 'rgb(' + color.red + ',' + color.green + ',' + color.blue + ')';
-        ctx.fillRect(player.x, player.y, 5, 5);
+        ctx.fillRect(player.x | 0, player.y | 0, 5, 5);
     }
 
     function onLoadedMetadata(e) {
