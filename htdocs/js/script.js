@@ -136,6 +136,9 @@ var MCG_JS = (function() {
 
     var worker = null;
 
+    var RATIO           = 16.0/9.0,
+        MAX_RESOLUTION  = 960;
+
     function repaint(delta, now) {
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
@@ -316,12 +319,24 @@ var MCG_JS = (function() {
         player.y = (canvas && canvas.height || 0)/2;
     }
 
+    function toggleQuality(event) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        canvas.width  = (canvas.width != MAX_RESOLUTION) ? MAX_RESOLUTION : MAX_RESOLUTION/2;
+        canvas.height = canvas.width / RATIO;
+    }
+
     (function init() {
         $.domReady(function() {
             $('html').on('drop', MCG_JS.fileDrop).on('dragenter dragover', MCG_JS.drag);
             DKeyboard.register('L', toggleFPS, { shift : true });
 
             $('canvas').mousemove($.throttle(updatePlayerPosition, 20)).mouseleave(resetPlayerPosition);
+
+            $('#controls > *').show();
+
+            $('#controls ul .quality').click(toggleQuality);
         });
     })();
 
