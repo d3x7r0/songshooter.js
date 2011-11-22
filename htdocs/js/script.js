@@ -142,23 +142,20 @@ var MCG_JS = (function() {
     var RATIO           = 16.0/9.0,
         MAX_RESOLUTION  = 960;
 
-    var player = {
-        x : 0,
-        y : 0
-    };
+    var DEFAULT_LIFE = 3;
 
-    function paintPlayer(ctx) {
+    var player;
+
+    function paintPlayer(delta, now) {
         ctx.fillStyle = '#000';
 
         ctx.fillRect(player.x | 0, player.y | 0, 5, 5);
+
+        // Reset the color
+        ctx.fillStyle = "rgb(0,0,0)";
     }
 
-    function repaint(delta, now) {
-        if (!running) {
-            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-            return false;
-        }
-
+    function paintBackground(delta, now) {
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
         ctx.fillRect(0, 0, buffer.width, buffer.height);
@@ -182,21 +179,9 @@ var MCG_JS = (function() {
         // Wash out the background a bit to make it less shocking
         ctx.fillStyle = "rgba(255,255,255,0.1)";
         ctx.fillRect(0, 0, buffer.width, buffer.height);
+    }
 
-        paintPlayer(ctx);
-
-        // Reset the color
-        ctx.fillStyle = "rgb(0,0,0)";
-
-        // FPS Counting
-        frames++;
-
-        if (now - fps_last_update > 1000) {
-            fps_last_update = now;
-            fps = frames;
-            frames = 0;
-        }
-
+    function paintUI(delta, now) {
         if (show_fps) {
             // Print the FPS
             ctx.textAlign = "start";
@@ -210,6 +195,26 @@ var MCG_JS = (function() {
             ctx.font      = "16px monospace";
             ctx.fillText("PAUSED", buffer.width/2, buffer.height/2);
         }
+    }
+
+    function loop(delta, now) {
+        if (!running) {
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            return false;
+        }
+
+        // FPS Counting
+        frames++;
+
+        if (now - fps_last_update > 1000) {
+            fps_last_update = now;
+            fps = frames;
+            frames = 0;
+        }
+
+        paintBackground(delta, now);
+        paintPlayer(delta, now);
+        paintUI(delta, now);
 
         // Copy from the offscreen buffer
         canvas.getContext('2d').drawImage(buffer, 0, 0);
@@ -232,7 +237,7 @@ var MCG_JS = (function() {
         audioElement[0].play();
 
         running = true;
-        animLoop(repaint, canvas);
+        animLoop(loop, canvas);
     }
 
     function audioAvailable(event) {
@@ -240,6 +245,27 @@ var MCG_JS = (function() {
             frameBuffer : event.frameBuffer, 
             time        : event.time
         });
+    }
+
+    function updatePlayerPosition(event) {
+        if (!paused) {
+            player.x = event.pageX - canvas_offset.left;
+            player.y = event.pageY - canvas_offset.top;
+
+            // TODO: check if it's inside the bounds
+
+            player.x = player.x * canvas.width / $(canvas).width();
+            player.y = player.y * canvas.height / $(canvas).height();
+        }
+    }
+
+    function resetPlayer() {
+        player = {
+            x     : 5,
+            y     : canvas.height/2,
+            score : 0,
+            life  : DEFAULT_LIFE
+        };
     }
 
     function finish() {
@@ -252,6 +278,9 @@ var MCG_JS = (function() {
         audioElement.remove();
 
         worker.terminate();
+
+        // TODO: save high score
+        resetPlayer();
     }
 
     function onAudioEnd(file) {
@@ -261,23 +290,6 @@ var MCG_JS = (function() {
     function onWorkerMessage(event) {
         canvasBG = event.data.canvasBG;
         spectrum = event.data.spectrum;
-    }
-
-    function updatePlayerPosition(event) {
-        if (!paused) {
-            player.x = event.pageX - canvas_offset.left;
-            player.y = event.pageY - canvas_offset.top;
-
-            player.x = player.x * canvas.width / $(canvas).width();
-            player.y = player.y * canvas.height / $(canvas).height();
-        }
-    }
-
-    function resetPlayerPosition(event) {
-        if (!paused) {
-            player.x = 5;
-            player.y = canvas.height/2;
-        }
     }
 
     function updateQualityIndicator(item) {
@@ -325,8 +337,8 @@ var MCG_JS = (function() {
         worker = new Worker('js/worker.js');
         worker.addEventListener('message', onWorkerMessage);
 
-        // Reset the player position
-        resetPlayerPosition();
+        // Reset the player
+        resetPlayer();
 
         // Load the audio file
         audioElement.attr('src', file);
@@ -387,6 +399,7 @@ var MCG_JS = (function() {
         }
 
         // TODO: clear the score/ships
+        resetPlayer();
         audioElement[0].currentTime = 0;
     }
 
@@ -415,7 +428,7 @@ var MCG_JS = (function() {
             buffer.width  = canvas.width;
             buffer.height = canvas.height;
 
-            $(canvas).mousemove(updatePlayerPosition).mouseleave(resetPlayerPosition);
+            $(canvas).mousemove(updatePlayerPosition);
 
             $('#controls ul .quality').click(toggleQuality).find('a').append(' <span></span>')
                 .each(updateQualityIndicator);
