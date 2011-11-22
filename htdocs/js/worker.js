@@ -106,5 +106,5 @@ self.onmessage = function(event) {
     } else {
         process(event.data);
     }
-}
+};
 

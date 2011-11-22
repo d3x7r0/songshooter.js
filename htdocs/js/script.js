@@ -89,7 +89,7 @@ var DKeyboard = (function() {
         callbacks[charCode][callbacks[charCode].length] = {
             callback : cb,
             opts     : opts
-        }
+        };
     }
 
     function onKeyPress(e) {
@@ -115,7 +115,7 @@ var DKeyboard = (function() {
     return {
         KEYCODES : KEYCODES,
         register : register
-    }
+    };
 })();
 
 var MCG_JS = (function() {
@@ -130,7 +130,7 @@ var MCG_JS = (function() {
         canvasBG = { red: 255, green: 255, blue: 255 };
 
     var frames          = 0,
-        fps_last_update = 0;
+        fps_last_update = 0,
         fps             = 0;
 
     var show_fps = false,
@@ -141,6 +141,17 @@ var MCG_JS = (function() {
 
     var RATIO           = 16.0/9.0,
         MAX_RESOLUTION  = 960;
+
+    var player = {
+        x : 0,
+        y : 0
+    };
+
+    function paintPlayer(ctx) {
+        ctx.fillStyle = '#000';
+
+        ctx.fillRect(player.x | 0, player.y | 0, 5, 5);
+    }
 
     function repaint(delta, now) {
         if (!running) {
@@ -157,7 +168,7 @@ var MCG_JS = (function() {
 
         for (var i = 0; i < spectrum.length && i*2 <= buffer.width/2; i++) {
             // multiply spectrum by a zoom value
-            magnitude = (spectrum[i] * buffer.height * 6.0) | 0;
+            var magnitude = (spectrum[i] * buffer.height * 6.0) | 0;
 
             // Draw rectangle bars for each frequency bin
             var X      = i * 2 - 1,
@@ -204,12 +215,6 @@ var MCG_JS = (function() {
         canvas.getContext('2d').drawImage(buffer, 0, 0);
     }
 
-    function paintPlayer(ctx) {
-        ctx.fillStyle   = '#000'
-
-        ctx.fillRect(player.x | 0, player.y | 0, 5, 5);
-    }
-
     function onLoadedMetadata(e) {
         // TODO: add some Web Audio API love here
         var data = {
@@ -219,7 +224,7 @@ var MCG_JS = (function() {
                 rate              : audioElement[0].mozSampleRate,
                 frameBufferLength : audioElement[0].mozFrameBufferLength
             }
-        }
+        };
 
         // Start the Worker
         worker.postMessage(data);
@@ -237,10 +242,6 @@ var MCG_JS = (function() {
         });
     }
 
-    function onAudioEnd(file) {
-        finish();
-    }
-
     function finish() {
         running = false;
         paused  = false;
@@ -253,9 +254,58 @@ var MCG_JS = (function() {
         worker.terminate();
     }
 
+    function onAudioEnd(file) {
+        finish();
+    }
+
     function onWorkerMessage(event) {
         canvasBG = event.data.canvasBG;
         spectrum = event.data.spectrum;
+    }
+
+    function updatePlayerPosition(event) {
+        if (!paused) {
+            player.x = event.pageX - canvas_offset.left;
+            player.y = event.pageY - canvas_offset.top;
+
+            player.x = player.x * canvas.width / $(canvas).width();
+            player.y = player.y * canvas.height / $(canvas).height();
+        }
+    }
+
+    function resetPlayerPosition(event) {
+        if (!paused) {
+            player.x = 5;
+            player.y = canvas.height/2;
+        }
+    }
+
+    function updateQualityIndicator(item) {
+        $(item).find('span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
+    }
+
+    function toggleQuality(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        // Figure out if we're supposed to double or halve the resolution
+        var multiplier = (canvas.width != MAX_RESOLUTION) ? 2.0 : 0.5;
+
+        // change the canvas size
+        canvas.width  = canvas.width * multiplier;
+        canvas.height = canvas.width / RATIO;
+
+        buffer.width  = canvas.width;
+        buffer.height = canvas.height;
+
+        // update the player position
+        player.x = player.x * multiplier;
+        player.y = player.y * multiplier;
+
+        // update the quality indicator text
+        updateQualityIndicator('#controls ul .quality');
     }
 
     function setup(file) {
@@ -311,56 +361,6 @@ var MCG_JS = (function() {
         return (show_fps = !show_fps);
     }
 
-    var player = {
-        x : 0,
-        y : 0
-    }
-
-    function updatePlayerPosition(event) {
-        if (!paused) {
-            player.x = event.pageX - canvas_offset.left;
-            player.y = event.pageY - canvas_offset.top;
-
-            player.x = player.x * canvas.width / $(canvas).width();
-            player.y = player.y * canvas.height / $(canvas).height();
-        }
-    }
-
-    function resetPlayerPosition(event) {
-        if (!paused) {
-            player.x = 5;
-            player.y = canvas.height/2;
-        }
-    }
-
-    function toggleQuality(event) {
-        if (event) {
-            event.stopPropagation();
-            event.preventDefault();
-        }
-
-        // Figure out if we're supposed to double or halve the resolution
-        var multiplier = (canvas.width != MAX_RESOLUTION) ? 2.0 : 0.5;
-
-        // change the canvas size
-        canvas.width  = canvas.width * multiplier;
-        canvas.height = canvas.width / RATIO;
-
-        buffer.width  = canvas.width;
-        buffer.height = canvas.height;
-
-        // update the player position
-        player.x = player.x * multiplier;
-        player.y = player.y * multiplier;
-
-        // update the quality indicator text
-        updateQualityIndicator('#controls ul .quality');
-    }
-
-    function updateQualityIndicator(item) {
-        $(item).find('span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
-    }
-
     function togglePause(event) {
         if (event) {
             event.stopPropagation();
@@ -369,8 +369,13 @@ var MCG_JS = (function() {
 
         paused = !paused;
 
-        paused ? $('#screen').css('cursor', '') : $('#screen').css('cursor', 'none');
-        paused ? audioElement[0].pause() : audioElement[0].play();
+        if (paused) {
+            $('#screen').css('cursor', '');
+            audioElement[0].pause();
+        } else {
+            $('#screen').css('cursor', 'none');
+            audioElement[0].play();
+        }
 
         return paused;
     }
@@ -400,11 +405,11 @@ var MCG_JS = (function() {
             $('html').on('drop', fileDrop).on('dragenter dragover', drag);
             DKeyboard.register('L', toggleFPS, { shift : true });
 
-            canvas        = $('#screen')[0],
-            canvas_offset = $(canvas).offset()
+            canvas        = $('#screen')[0];
+            canvas_offset = $(canvas).offset();
 
             // Create the offscreen buffer
-            buffer = document.createElement('canvas'),
+            buffer = document.createElement('canvas');
             ctx    = buffer.getContext('2d');
 
             buffer.width  = canvas.width;
@@ -434,5 +439,5 @@ var MCG_JS = (function() {
 var _gaq=[['_setAccount','UA-XXXXX-X'],['_trackPageview']]; // Change UA-XXXXX-X to be your site's ID
 (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.async=1;
  g.src=('https:'==location.protocol?'//ssl':'//www')+'.google-analytics.com/ga.js';
- s.parentNode.insertBefore(g,s)}(document,'script'));
+ s.parentNode.insertBefore(g,s);}(document,'script'));
 
