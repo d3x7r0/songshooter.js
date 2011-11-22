@@ -142,17 +142,24 @@ var MCG_JS = (function() {
     var RATIO           = 16.0/9.0,
         MAX_RESOLUTION  = 960;
 
-    var DEFAULT_LIFE = 3;
+    var DEFAULT_LIFE = 3,
+        PLAYER_SIZE  = {
+            X : 20,
+            Y : 10
+        };
 
     var player;
 
-    function paintPlayer(delta, now) {
-        ctx.fillStyle = '#000';
-
-        ctx.fillRect(player.x | 0, player.y | 0, 5, 5);
-
+    function paintShips(delta, now) {
         // Reset the color
         ctx.fillStyle = "rgb(0,0,0)";
+        ctx.strokeStyle = "rgb(0,0,0)";
+
+        // Figure out if we're supposed to halve the resolution
+        var multiplier = (canvas.width != MAX_RESOLUTION) ? 0.5 : 1.0;
+
+        ctx.strokeRect(player.x | 0, player.y | 0,
+                       (PLAYER_SIZE.X * multiplier) | 0, (PLAYER_SIZE.Y * multiplier) | 0);
     }
 
     function paintBackground(delta, now) {
@@ -182,18 +189,27 @@ var MCG_JS = (function() {
     }
 
     function paintUI(delta, now) {
+        if (paused) {
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.fillRect(0, 0, buffer.width, buffer.height);
+
+            // Print paused if the game is paused
+            ctx.textAlign = "center";
+            ctx.font      = "32px monospace";
+            ctx.fillText("PAUSED", buffer.width/2, buffer.height/2);
+
+            // Reset the color
+            ctx.fillStyle = "#000";
+        }
+
         if (show_fps) {
+            // Reset the color
+            ctx.fillStyle = "rgb(0,0,0)";
+
             // Print the FPS
             ctx.textAlign = "start";
             ctx.font      = "8px monospace";
             ctx.fillText(fps + " fps", 10, 10);
-        }
-
-        if (paused) {
-            // Print paused if the game is paused
-            ctx.textAlign = "center";
-            ctx.font      = "16px monospace";
-            ctx.fillText("PAUSED", buffer.width/2, buffer.height/2);
         }
     }
 
@@ -208,12 +224,12 @@ var MCG_JS = (function() {
 
         if (now - fps_last_update > 1000) {
             fps_last_update = now;
-            fps = frames;
-            frames = 0;
+            fps             = frames;
+            frames          = 0;
         }
 
         paintBackground(delta, now);
-        paintPlayer(delta, now);
+        paintShips(delta, now);
         paintUI(delta, now);
 
         // Copy from the offscreen buffer
