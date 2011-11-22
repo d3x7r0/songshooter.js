@@ -24,45 +24,23 @@ var ftimer   = 0,
 
 var audio;
 
-// Inspired by: http://wiki.mozilla.org/Audio_Data_API
-function process(data) {
-    // TODO: stop cheating and do an FFT for each channel
-    var fb         = data.frameBuffer,
-        signal     = new Float32Array(fb.length / audio.channels),
-        magnitude;
+var MAX_ENEMIES = 5;
 
-    for (var i = 0, fbl = audio.frameBufferLength / 2; i < fbl; i++ ) {
-        // Assuming interlaced stereo channels,
-        // need to split and merge into a stero-mix mono signal
-        signal[i] = (fb[2*i] + fb[2*i+1]) / 2;
-    }
+var prob = [];
 
-    fft.forward(signal);
+function calculateEnemies(average) {
+    var num_enemies = prob.length-1,
+        found       = false;
 
-    var spectrum = fft.spectrum;
-
-    bd.process(data.time, fft.spectrum);
-
-    ftimer += bd.last_update;
-    if (ftimer > 1.0/30.0) {
-        var max = Math.max.apply(Math, spectrum) * 10.0;
-
-        beats.shift();
-        beats.push(max);
-
-        var average = 0;
-        for(var i = 0; i < MAX_BEATS; i++) {
-            average += beats[i];
+    while(num_enemies > 0 && !found) {
+        if (average > prob[num_enemies]) {
+            found = true;
+        } else {
+            num_enemies--;
         }
-        average = average/MAX_BEATS;
-
-        canvasBG = calculateBackground(average);
     }
 
-    postMessage({
-        spectrum : spectrum,
-        canvasBG : canvasBG
-    });
+    return num_enemies;
 }
 
 function calculateBackground(value) {
@@ -88,6 +66,52 @@ function calculateBackground(value) {
     return color;
 }
 
+// Inspired by: http://wiki.mozilla.org/Audio_Data_API
+function process(data) {
+    // TODO: stop cheating and do an FFT for each channel
+    var fb     = data.frameBuffer,
+        signal = new Float32Array(fb.length / audio.channels),
+        magnitude;
+
+    for (var i = 0, fbl = audio.frameBufferLength / 2; i < fbl; i++ ) {
+        // Assuming interlaced stereo channels,
+        // need to split and merge into a stero-mix mono signal
+        signal[i] = (fb[2*i] + fb[2*i+1]) / 2;
+    }
+
+    fft.forward(signal);
+
+    var spectrum = fft.spectrum;
+
+    bd.process(data.time, fft.spectrum);
+
+    ftimer += bd.last_update;
+
+    var average = 0;
+
+    if (ftimer > 1.0/30.0) {
+        var max = Math.max.apply(Math, spectrum) * 10.0;
+
+        beats.shift();
+        beats.push(max);
+
+        for(var i = 0; i < MAX_BEATS; i++) {
+            average += beats[i];
+        }
+        average = average/MAX_BEATS;
+
+        canvasBG = calculateBackground(average);
+    }
+
+    var num_enemies = calculateEnemies(average);
+
+    postMessage({
+        spectrum    : spectrum,
+        canvasBG    : canvasBG,
+        num_enemies : num_enemies
+    });
+}
+
 function setup(data) {
     audio = data.audio;
 
@@ -98,6 +122,9 @@ function setup(data) {
     bd  = new BeatDetektor();
     fft = new FFT(audio.frameBufferLength / audio.channels, audio.rate);
 
+    for (var i = 0; i < MAX_ENEMIES; i++) {
+        prob[i] = i * COLOR_MAX / MAX_ENEMIES;
+    }
 }
 
 self.onmessage = function(event) {

@@ -148,18 +148,22 @@ var MCG_JS = (function() {
             Y : 10
         };
 
-    var player;
+    var player,
+        enemies;
 
     function paintShips(delta, now) {
         // Reset the color
         ctx.fillStyle = "rgb(0,0,0)";
         ctx.strokeStyle = "rgb(0,0,0)";
 
+        // Paint the player
         // Figure out if we're supposed to halve the resolution
         var multiplier = (canvas.width != MAX_RESOLUTION) ? 0.5 : 1.0;
 
         ctx.strokeRect(player.x | 0, player.y | 0,
                        (PLAYER_SIZE.X * multiplier) | 0, (PLAYER_SIZE.Y * multiplier) | 0);
+
+        // Paint the enemies
     }
 
     function paintBackground(delta, now) {
@@ -297,6 +301,8 @@ var MCG_JS = (function() {
 
         // TODO: save high score
         resetPlayer();
+
+        enemies = [];
     }
 
     function onAudioEnd(file) {
@@ -306,6 +312,8 @@ var MCG_JS = (function() {
     function onWorkerMessage(event) {
         canvasBG = event.data.canvasBG;
         spectrum = event.data.spectrum;
+        // TODO: generate the enemies
+        console.log(event.data.num_enemies);
     }
 
     function updateQualityIndicator(item) {
@@ -341,6 +349,9 @@ var MCG_JS = (function() {
             finish();
         }
 
+        // Reset the player
+        resetPlayer();
+
         audioElement = $.create('<audio>').css('display', 'none');
 
         $('#main').append(audioElement);
@@ -352,9 +363,6 @@ var MCG_JS = (function() {
 
         worker = new Worker('js/worker.js');
         worker.addEventListener('message', onWorkerMessage);
-
-        // Reset the player
-        resetPlayer();
 
         // Load the audio file
         audioElement.attr('src', file);
@@ -443,6 +451,9 @@ var MCG_JS = (function() {
 
             buffer.width  = canvas.width;
             buffer.height = canvas.height;
+
+            // Reset the player
+            resetPlayer();
 
             $(canvas).mousemove(updatePlayerPosition);
 
