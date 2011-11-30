@@ -124,7 +124,8 @@ var MCG_JS = (function() {
         canvas_offset;
 
     var buffer,
-        ctx;
+        ctx,
+        playerSprite;
 
     var spectrum = [],
         canvasBG = { red: 255, green: 255, blue: 255 };
@@ -142,11 +143,9 @@ var MCG_JS = (function() {
     var RATIO           = 16.0/9.0,
         MAX_RESOLUTION  = 960;
 
-    var DEFAULT_LIFE = 3,
-        PLAYER_SIZE  = {
-            X : 20,
-            Y : 10
-        };
+    var DEFAULT_LIFE   = 3,
+        PLAYER_SPRITE  = 'img/ship1.svg',
+        SPRITE_SCALING = 0.25;
 
     var player,
         enemies;
@@ -154,14 +153,27 @@ var MCG_JS = (function() {
     function paintShips(delta, now) {
         // Reset the color
         ctx.fillStyle = "rgb(0,0,0)";
-        ctx.strokeStyle = "rgb(0,0,0)";
 
         // Paint the player
         // Figure out if we're supposed to halve the resolution
         var multiplier = (canvas.width != MAX_RESOLUTION) ? 0.5 : 1.0;
 
-        ctx.strokeRect(player.x | 0, player.y | 0,
-                       (PLAYER_SIZE.X * multiplier) | 0, (PLAYER_SIZE.Y * multiplier) | 0);
+        var size = {
+            height : playerSprite.height * multiplier * SPRITE_SCALING | 0,
+            width  : playerSprite.width  * multiplier * SPRITE_SCALING | 0
+        };
+
+        var pos = {
+            x : (player.x - size.width/2.0) | 0,
+            y : (player.y - size.height/2.0) | 0
+        };
+
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate( - (Math.PI / 2.0) );
+        ctx.drawImage(playerSprite, 0, 0, size.width, size.height);
+        ctx.translate(-pos.x, -pos.y);
+        ctx.restore();
 
         // Paint the enemies
     }
@@ -361,8 +373,15 @@ var MCG_JS = (function() {
         $(canvas).css('cursor', 'none');
         $('#controls .ingame').show();
 
+        // Setup the worker thread
         worker = new Worker('js/worker.js');
         worker.addEventListener('message', onWorkerMessage);
+
+        // Load the player sprite (if it's not loaded)
+        if (!playerSprite) {
+            playerSprite     = new Image();
+            playerSprite.src = PLAYER_SPRITE;
+        }
 
         // Load the audio file
         audioElement.attr('src', file);

@@ -13,7 +13,7 @@
    height="160"
    id="svg2"
    version="1.1"
-   inkscape:version="0.48.2 r9819"
+   inkscape:version="0.48.1 r9760"
    sodipodi:docname="ship1.svg">
   <defs
      id="defs4" />
@@ -25,7 +25,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="272.81817"
+     inkscape:cx="180.38921"
      inkscape:cy="134.24947"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -33,9 +33,9 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:window-width="1440"
-     inkscape:window-height="838"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
+     inkscape:window-height="846"
+     inkscape:window-x="0"
+     inkscape:window-y="26"
      inkscape:window-maximized="1" />
   <metadata
      id="metadata7">
@@ -55,7 +55,7 @@
      id="layer1"
      transform="translate(0,-892.36218)">
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.4149974px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="fill:none;stroke:#000000;stroke-width:5;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none"
        d="m 97.842239,1016.2561 0,-26.74204 44.450261,-45.67174 0,-27.04247 -26.61165,0 0,-19.2302 -35.288231,0 -36.07346,0 0,19.2302 -26.61166,0 0,27.04247 44.45026,45.67174 0,26.74204 18.23486,30.8986 z"
        id="path3018"
        inkscape:connector-curvature="0"
