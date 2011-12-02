@@ -150,10 +150,15 @@ var MCG_JS = (function() {
     var DEFAULT_LIFE   = 3,
         PLAYER_SPRITE  = 'img/ship1.svg',
         ENEMY_SPRITE   = 'img/ship2.svg',
-        SPRITE_SCALING = 0.25;
+        SPRITE_SCALING = 0.25,
+        FIRE_RATE      = 100,
+        BULLET_SPEED   = 1.05;
 
     var player,
-        enemies;
+        enemies,
+        bullets;
+
+    var bullets_last_update = 0;
 
     function paintShips(delta, now) {
         // Reset the color
@@ -173,9 +178,13 @@ var MCG_JS = (function() {
             y : (player.y - size.height/2.0) | 0
         };
 
-        ctx.save();
         ctx.drawImage(playerSprite, pos.x, pos.y, size.width, size.height);
-        ctx.restore();
+
+        // Paint the bullets
+        for(var i = 0; i < bullets.length; i++) {
+            // TODO: change color and size
+            ctx.fillRect(bullets[i].x, bullets[i].y, 5, 5);
+        }
 
         // Paint the enemies
     }
@@ -246,6 +255,36 @@ var MCG_JS = (function() {
             frames          = 0;
         }
 
+        // Update bullet position and clean those outside the screen
+        var valid_bullets = [];
+
+        for(var i = 0; i < bullets.length; i++) {
+            // Update position
+            // TODO: use a proper acceleration value
+            bullets[i].x = bullets[i].x * BULLET_SPEED;
+
+            // Clean those outside the screen
+            if (bullets[i].x <= canvas_size.width) {
+                valid_bullets.push(bullets[i]);
+            }
+        }
+
+        bullets = valid_bullets;
+
+        // Generate new bullet
+        if (Date.now() - bullets_last_update > FIRE_RATE) {
+            var bullet = {
+                x : player.x + spriteSize.width/2,
+                y : player.y
+            };
+
+            bullets.push(bullet);
+
+            bullets_last_update = Date.now();
+        }
+
+        // TODO: Check bullet collisions
+
         paintBackground(delta, now);
         paintShips(delta, now);
         paintUI(delta, now);
@@ -315,6 +354,8 @@ var MCG_JS = (function() {
             score : 0,
             life  : DEFAULT_LIFE
         };
+
+        bullets = [];
     }
 
     function finish() {
@@ -332,6 +373,7 @@ var MCG_JS = (function() {
         resetPlayer();
 
         enemies = [];
+        bullets = [];
     }
 
     function onAudioEnd(file) {
