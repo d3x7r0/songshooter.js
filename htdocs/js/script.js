@@ -125,7 +125,9 @@ var MCG_JS = (function() {
 
     var buffer,
         ctx,
-        playerSprite;
+        enemySprite,
+        playerSprite,
+        spriteSize;
 
     var spectrum = [],
         canvasBG = { red: 255, green: 255, blue: 255 };
@@ -145,6 +147,7 @@ var MCG_JS = (function() {
 
     var DEFAULT_LIFE   = 3,
         PLAYER_SPRITE  = 'img/ship1.svg',
+        ENEMY_SPRITE   = 'img/ship2.svg',
         SPRITE_SCALING = 0.25;
 
     var player,
@@ -169,10 +172,7 @@ var MCG_JS = (function() {
         };
 
         ctx.save();
-        ctx.translate(pos.x, pos.y);
-        ctx.rotate( - (Math.PI / 2.0) );
-        ctx.drawImage(playerSprite, 0, 0, size.width, size.height);
-        ctx.translate(-pos.x, -pos.y);
+        ctx.drawImage(playerSprite, pos.x, pos.y, size.width, size.height);
         ctx.restore();
 
         // Paint the enemies
@@ -280,14 +280,37 @@ var MCG_JS = (function() {
     }
 
     function updatePlayerPosition(event) {
-        if (!paused) {
+        if (!paused && running) {
             player.x = event.pageX - canvas_offset.left;
             player.y = event.pageY - canvas_offset.top;
 
-            // TODO: check if it's inside the bounds
+            // Figure out if we're supposed to halve the resolution
+            var multiplier = (canvas.width != MAX_RESOLUTION) ? 0.5 : 1.0;
+
+            spriteSize = {
+                height : playerSprite.height * multiplier * SPRITE_SCALING | 0,
+                width  : playerSprite.width  * multiplier * SPRITE_SCALING | 0
+            };
 
             player.x = player.x * canvas.width / $(canvas).width();
             player.y = player.y * canvas.height / $(canvas).height();
+
+            // check the bounds
+            if (player.x - spriteSize.width/2 < 0) {
+                player.x = spriteSize.width/2;
+            }
+
+            if (player.x > buffer.width - spriteSize.width/2) {
+                player.x = buffer.width - spriteSize.width/2;
+            }
+
+            if (player.y > buffer.height - spriteSize.height/2) {
+                player.y = buffer.height - spriteSize.height/2;
+            }
+
+            if (player.y - spriteSize.height/2 < 0) {
+                player.y = spriteSize.height/2;
+            }
         }
     }
 
@@ -298,6 +321,15 @@ var MCG_JS = (function() {
             score : 0,
             life  : DEFAULT_LIFE
         };
+
+        // Figure out if we're supposed to halve the resolution
+        var multiplier = (canvas.width != MAX_RESOLUTION) ? 0.5 : 1.0;
+
+        spriteSize = {
+            height : playerSprite.height * multiplier * SPRITE_SCALING | 0,
+            width  : playerSprite.width  * multiplier * SPRITE_SCALING | 0
+        };
+
     }
 
     function finish() {
@@ -376,12 +408,6 @@ var MCG_JS = (function() {
         // Setup the worker thread
         worker = new Worker('js/worker.js');
         worker.addEventListener('message', onWorkerMessage);
-
-        // Load the player sprite (if it's not loaded)
-        if (!playerSprite) {
-            playerSprite     = new Image();
-            playerSprite.src = PLAYER_SPRITE;
-        }
 
         // Load the audio file
         audioElement.attr('src', file);
@@ -470,6 +496,13 @@ var MCG_JS = (function() {
 
             buffer.width  = canvas.width;
             buffer.height = canvas.height;
+
+            // Load the sprites (if it's not loaded)
+            playerSprite     = new Image();
+            playerSprite.src = PLAYER_SPRITE;
+
+            enemySprite     = new Image();
+            enemySprite.src = ENEMY_SPRITE;
 
             // Reset the player
             resetPlayer();
