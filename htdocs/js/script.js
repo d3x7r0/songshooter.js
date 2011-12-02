@@ -183,38 +183,38 @@ var MCG_JS = (function() {
     function paintBackground(delta, now) {
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
-        ctx.fillRect(0, 0, buffer.width, buffer.height);
+        ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
 
         // Reset the color
         ctx.fillStyle = "rgba(0,0,0,0.2)";
 
-        for (var i = 0; i < spectrum.length && i*2 <= buffer.width/2; i++) {
+        for (var i = 0; i < spectrum.length && i*2 <= canvas_size.width/2; i++) {
             // multiply spectrum by a zoom value
-            var magnitude = (spectrum[i] * buffer.height * 6.0) | 0;
+            var magnitude = (spectrum[i] * canvas_size.height * 6.0) | 0;
 
             // Draw rectangle bars for each frequency bin
             var X      = i * 2 - 1,
-                Y      = buffer.height/2 - magnitude,
+                Y      = canvas_size.height/2 - magnitude,
                 height = magnitude * 2;
 
             ctx.fillRect(X, Y, 1, height);
-            ctx.fillRect(buffer.width - X, Y, 1, height);
+            ctx.fillRect(canvas_size.width - X, Y, 1, height);
         }
 
         // Wash out the background a bit to make it less shocking
         ctx.fillStyle = "rgba(255,255,255,0.1)";
-        ctx.fillRect(0, 0, buffer.width, buffer.height);
+        ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
     }
 
     function paintUI(delta, now) {
         if (paused) {
             ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.fillRect(0, 0, buffer.width, buffer.height);
+            ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
 
             // Print paused if the game is paused
             ctx.textAlign = "center";
             ctx.font      = "32px monospace";
-            ctx.fillText("PAUSED", buffer.width/2, buffer.height/2);
+            ctx.fillText("PAUSED", canvas_size.width/2, canvas_size.height/2);
 
             // Reset the color
             ctx.fillStyle = "#000";
@@ -294,12 +294,12 @@ var MCG_JS = (function() {
                 player.x = spriteSize.width/2;
             }
 
-            if (player.x > buffer.width - spriteSize.width/2) {
-                player.x = buffer.width - spriteSize.width/2;
+            if (player.x > canvas_size.width - spriteSize.width/2) {
+                player.x = canvas_size.width - spriteSize.width/2;
             }
 
-            if (player.y > buffer.height - spriteSize.height/2) {
-                player.y = buffer.height - spriteSize.height/2;
+            if (player.y > canvas_size.height - spriteSize.height/2) {
+                player.y = canvas_size.height - spriteSize.height/2;
             }
 
             if (player.y - spriteSize.height/2 < 0) {
