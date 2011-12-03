@@ -125,7 +125,11 @@ var MCG_JS = (function() {
 
     var buffer,
         ctx,
-        playerSprite;
+        canvas_size;
+
+    var enemySprite,
+        playerSprite,
+        spriteSize;
 
     var spectrum = [],
         canvasBG = { red: 255, green: 255, blue: 255 };
@@ -145,10 +149,16 @@ var MCG_JS = (function() {
 
     var DEFAULT_LIFE   = 3,
         PLAYER_SPRITE  = 'img/ship1.svg',
-        SPRITE_SCALING = 0.25;
+        ENEMY_SPRITE   = 'img/ship2.svg',
+        SPRITE_SCALING = 0.25,
+        FIRE_RATE      = 100,
+        BULLET_SPEED   = 1.05;
 
     var player,
-        enemies;
+        enemies,
+        bullets;
+
+    var bullets_last_update = 0;
 
     function paintShips(delta, now) {
         // Reset the color
@@ -156,7 +166,7 @@ var MCG_JS = (function() {
 
         // Paint the player
         // Figure out if we're supposed to halve the resolution
-        var multiplier = (canvas.width != MAX_RESOLUTION) ? 0.5 : 1.0;
+        var multiplier = (canvas_size.width != MAX_RESOLUTION) ? 0.5 : 1.0;
 
         var size = {
             height : playerSprite.height * multiplier * SPRITE_SCALING | 0,
@@ -168,12 +178,13 @@ var MCG_JS = (function() {
             y : (player.y - size.height/2.0) | 0
         };
 
-        ctx.save();
-        ctx.translate(pos.x, pos.y);
-        ctx.rotate( - (Math.PI / 2.0) );
-        ctx.drawImage(playerSprite, 0, 0, size.width, size.height);
-        ctx.translate(-pos.x, -pos.y);
-        ctx.restore();
+        ctx.drawImage(playerSprite, pos.x, pos.y, size.width, size.height);
+
+        // Paint the bullets
+        for(var i = 0; i < bullets.length; i++) {
+            // TODO: change color and size
+            ctx.fillRect(bullets[i].x, bullets[i].y, 5, 5);
+        }
 
         // Paint the enemies
     }
@@ -181,38 +192,38 @@ var MCG_JS = (function() {
     function paintBackground(delta, now) {
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
-        ctx.fillRect(0, 0, buffer.width, buffer.height);
+        ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
 
         // Reset the color
         ctx.fillStyle = "rgba(0,0,0,0.2)";
 
-        for (var i = 0; i < spectrum.length && i*2 <= buffer.width/2; i++) {
+        for (var i = 0; i < spectrum.length && i*2 <= canvas_size.width/2; i++) {
             // multiply spectrum by a zoom value
-            var magnitude = (spectrum[i] * buffer.height * 6.0) | 0;
+            var magnitude = (spectrum[i] * canvas_size.height * 6.0) | 0;
 
             // Draw rectangle bars for each frequency bin
             var X      = i * 2 - 1,
-                Y      = buffer.height/2 - magnitude,
+                Y      = canvas_size.height/2 - magnitude,
                 height = magnitude * 2;
 
             ctx.fillRect(X, Y, 1, height);
-            ctx.fillRect(buffer.width - X, Y, 1, height);
+            ctx.fillRect(canvas_size.width - X, Y, 1, height);
         }
 
         // Wash out the background a bit to make it less shocking
         ctx.fillStyle = "rgba(255,255,255,0.1)";
-        ctx.fillRect(0, 0, buffer.width, buffer.height);
+        ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
     }
 
     function paintUI(delta, now) {
         if (paused) {
             ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.fillRect(0, 0, buffer.width, buffer.height);
+            ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
 
             // Print paused if the game is paused
             ctx.textAlign = "center";
             ctx.font      = "32px monospace";
-            ctx.fillText("PAUSED", buffer.width/2, buffer.height/2);
+            ctx.fillText("PAUSED", canvas_size.width/2, canvas_size.height/2);
 
             // Reset the color
             ctx.fillStyle = "#000";
@@ -231,7 +242,7 @@ var MCG_JS = (function() {
 
     function loop(delta, now) {
         if (!running) {
-            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            canvas.getContext('2d').clearRect(0, 0, canvas_size.width, canvas_size.height);
             return false;
         }
 
@@ -243,6 +254,36 @@ var MCG_JS = (function() {
             fps             = frames;
             frames          = 0;
         }
+
+        // Update bullet position and clean those outside the screen
+        var valid_bullets = [];
+
+        for(var i = 0; i < bullets.length; i++) {
+            // Update position
+            // TODO: use a proper acceleration value
+            bullets[i].x = bullets[i].x * BULLET_SPEED;
+
+            // Clean those outside the screen
+            if (bullets[i].x <= canvas_size.width) {
+                valid_bullets.push(bullets[i]);
+            }
+        }
+
+        bullets = valid_bullets;
+
+        // Generate new bullet
+        if (Date.now() - bullets_last_update > FIRE_RATE) {
+            var bullet = {
+                x : player.x + spriteSize.width/2,
+                y : player.y
+            };
+
+            bullets.push(bullet);
+
+            bullets_last_update = Date.now();
+        }
+
+        // TODO: Check bullet collisions
 
         paintBackground(delta, now);
         paintShips(delta, now);
@@ -280,24 +321,41 @@ var MCG_JS = (function() {
     }
 
     function updatePlayerPosition(event) {
-        if (!paused) {
+        if (!paused && running) {
             player.x = event.pageX - canvas_offset.left;
             player.y = event.pageY - canvas_offset.top;
 
-            // TODO: check if it's inside the bounds
+            player.x = player.x * canvas_size.width / $(canvas).width();
+            player.y = player.y * canvas_size.height / $(canvas).height();
 
-            player.x = player.x * canvas.width / $(canvas).width();
-            player.y = player.y * canvas.height / $(canvas).height();
+            // check the bounds
+            if (player.x - spriteSize.width/2 < 0) {
+                player.x = spriteSize.width/2;
+            }
+
+            if (player.x > canvas_size.width - spriteSize.width/2) {
+                player.x = canvas_size.width - spriteSize.width/2;
+            }
+
+            if (player.y > canvas_size.height - spriteSize.height/2) {
+                player.y = canvas_size.height - spriteSize.height/2;
+            }
+
+            if (player.y - spriteSize.height/2 < 0) {
+                player.y = spriteSize.height/2;
+            }
         }
     }
 
     function resetPlayer() {
         player = {
             x     : 5,
-            y     : canvas.height/2,
+            y     : canvas_size.height/2,
             score : 0,
             life  : DEFAULT_LIFE
         };
+
+        bullets = [];
     }
 
     function finish() {
@@ -307,7 +365,7 @@ var MCG_JS = (function() {
         $(canvas).css('cursor', '');
         $('#controls .ingame').hide();
 
-        audioElement.remove();
+        audioElement[0].pause();
 
         worker.terminate();
 
@@ -315,6 +373,7 @@ var MCG_JS = (function() {
         resetPlayer();
 
         enemies = [];
+        bullets = [];
     }
 
     function onAudioEnd(file) {
@@ -329,7 +388,36 @@ var MCG_JS = (function() {
     }
 
     function updateQualityIndicator(item) {
-        $(item).find('span').text((canvas.width != MAX_RESOLUTION) ? "(low)" : "(high)");
+        $(item).find('span').text((canvas_size.width != MAX_RESOLUTION) ? "(low)" : "(high)");
+    }
+
+    function updateQuality(multiplier) {
+        // change the canvas size
+        canvas.width  = canvas.width * multiplier;
+        canvas.height = canvas.height * multiplier;
+
+        canvas_size = {
+            width  : canvas.width,
+            height : canvas.height
+        };
+
+        buffer.width  = canvas_size.width;
+        buffer.height = canvas_size.height;
+
+        // update the player position
+        if (player) {
+            player.x = player.x * multiplier;
+            player.y = player.y * multiplier;
+        }
+
+        // Set the sprites size
+        spriteSize = {
+            height : playerSprite.height * (1/multiplier) * SPRITE_SCALING | 0,
+            width  : playerSprite.width  * (1/multiplier) * SPRITE_SCALING | 0
+        };
+
+        // update the quality indicator text
+        updateQualityIndicator('#controls ul .quality');
     }
 
     function toggleQuality(event) {
@@ -339,21 +427,9 @@ var MCG_JS = (function() {
         }
 
         // Figure out if we're supposed to double or halve the resolution
-        var multiplier = (canvas.width != MAX_RESOLUTION) ? 2.0 : 0.5;
+        var multiplier = (canvas_size.width != MAX_RESOLUTION) ? 2.0 : 0.5;
 
-        // change the canvas size
-        canvas.width  = canvas.width * multiplier;
-        canvas.height = canvas.width / RATIO;
-
-        buffer.width  = canvas.width;
-        buffer.height = canvas.height;
-
-        // update the player position
-        player.x = player.x * multiplier;
-        player.y = player.y * multiplier;
-
-        // update the quality indicator text
-        updateQualityIndicator('#controls ul .quality');
+        updateQuality(multiplier);
     }
 
     function setup(file) {
@@ -364,24 +440,12 @@ var MCG_JS = (function() {
         // Reset the player
         resetPlayer();
 
-        audioElement = $.create('<audio>').css('display', 'none');
-
-        $('#main').append(audioElement);
-
-        audioElement = $(audioElement);
-
         $(canvas).css('cursor', 'none');
         $('#controls .ingame').show();
 
         // Setup the worker thread
         worker = new Worker('js/worker.js');
         worker.addEventListener('message', onWorkerMessage);
-
-        // Load the player sprite (if it's not loaded)
-        if (!playerSprite) {
-            playerSprite     = new Image();
-            playerSprite.src = PLAYER_SPRITE;
-        }
 
         // Load the audio file
         audioElement.attr('src', file);
@@ -464,20 +528,29 @@ var MCG_JS = (function() {
             canvas        = $('#screen')[0];
             canvas_offset = $(canvas).offset();
 
+            // Load the sprites (if it's not loaded)
+            playerSprite     = new Image();
+            playerSprite.src = PLAYER_SPRITE;
+
+            enemySprite     = new Image();
+            enemySprite.src = ENEMY_SPRITE;
+
             // Create the offscreen buffer
             buffer = document.createElement('canvas');
             ctx    = buffer.getContext('2d');
 
-            buffer.width  = canvas.width;
-            buffer.height = canvas.height;
+            // Add the extra markup needed
+            $('#controls ul .quality').click(toggleQuality).find('a').append(' <span></span>');
 
-            // Reset the player
-            resetPlayer();
 
+            audioElement = $.create('<audio>').css('display', 'none');
+
+            $('#main').append(audioElement);
+
+            audioElement = $(audioElement);
+
+            // Register the mouse and keyboard listeners
             $(canvas).mousemove(updatePlayerPosition);
-
-            $('#controls ul .quality').click(toggleQuality).find('a').append(' <span></span>')
-                .each(updateQualityIndicator);
 
             DKeyboard.register('K', toggleQuality, { shift : true });
 
@@ -487,6 +560,9 @@ var MCG_JS = (function() {
             $('#controls ul .restart').click(restart);
 
             $('#controls ul .abort').click(abort);
+
+            // Set the render quality to 1.0
+            updateQuality(1.0);
         });
     })();
 
