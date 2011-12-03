@@ -1116,7 +1116,7 @@
           , optgroup: option }
       , stateAttributes = /^checked|selected$/
       , ie = /msie/i.test(navigator.userAgent)
-      , uidList = []
+      , uidMap = {}
       , uuids = 0
       , digit = /^-?[\d\.]+$/
       , dattr = /^data-(.+)$/
@@ -1159,6 +1159,16 @@
       return ar
     }
   
+    function deepEach(ar, fn, scope) {
+      for (var i = 0, l = ar.length; i < l; i++) {
+        if (isNode(ar[i])) {
+          deepEach(ar[i].childNodes, fn, scope);
+          fn.call(scope || ar[i], ar[i], i, ar);
+        }
+      }
+      return ar;
+    }
+  
     function camelize(s) {
       return s.replace(/-(.)/g, function (m, m1) {
         return m1.toUpperCase()
@@ -1172,7 +1182,12 @@
     function data(el) {
       el[getAttribute]('data-node-uid') || el[setAttribute]('data-node-uid', ++uuids)
       uid = el[getAttribute]('data-node-uid')
-      return uidList[uid] || (uidList[uid] = {})
+      return uidMap[uid] || (uidMap[uid] = {})
+    }
+  
+    function clearData(el) {
+      uid = el[getAttribute]('data-node-uid')
+      uid && (delete uidMap[uid])
     }
   
     function dataValue(d) {
@@ -1325,6 +1340,10 @@
           return each(this, fn, scope)
         }
   
+      , deepEach: function (fn, scope) {
+          return deepEach(this, fn, scope)
+        }
+  
       , map: function (fn, reject) {
           var m = [], n, i
           for (i = 0; i < this.length; i++) {
@@ -1349,13 +1368,12 @@
               'textContent' :
             'innerHTML', m;
           function append(el) {
-            while (el.firstChild) el.removeChild(el.firstChild)
             each(normalize(h), function (node) {
               el.appendChild(node)
             })
           }
           return typeof h !== 'undefined' ?
-              this.each(function (el) {
+              this.empty().each(function (el) {
                 !text && (m = el.tagName.match(specialTags)) ?
                   append(el, m[0]) :
                   (el[method] = h)
@@ -1492,6 +1510,8 @@
         }
   
       , replaceWith: function(html) {
+          this.deepEach(clearData)
+  
           return this.each(function (el) {
             el.parentNode.replaceChild(bonzo.create(html)[0], el)
           })
@@ -1642,6 +1662,8 @@
         }
   
       , remove: function () {
+          this.deepEach(clearData)
+  
           return this.each(function (el) {
             el[parentNode] && el[parentNode].removeChild(el)
           })
@@ -1649,6 +1671,8 @@
   
       , empty: function () {
           return this.each(function (el) {
+            deepEach(el.childNodes, clearData)
+  
             while (el.firstChild) {
               el.removeChild(el.firstChild)
             }
@@ -1669,9 +1693,9 @@
           return scroll.call(this, x, null, 'x')
         }
   
-      , toggle: function(callback) {
+      , toggle: function (callback, type) {
           this.each(function (el) {
-            el.style.display = (el.offsetWidth || el.offsetHeight) ? 'none' : 'block'
+            el.style.display = (el.offsetWidth || el.offsetHeight) ? 'none' : type || ''
           })
           callback && callback()
           return this
@@ -1813,9 +1837,7 @@
     }
   
     function indexOf(ar, val) {
-      for (var i = 0; i < ar.length; i++) {
-        if (ar[i] === val) return i
-      }
+      for (var i = 0; i < ar.length; i++) if (ar[i] === val) return i
       return -1
     }
   
@@ -2459,6 +2481,10 @@
       , dividers = new RegExp('(' + splitters.source + ')' + splittersMore.source, 'g')
       , tokenizr = new RegExp(splitters.source + splittersMore.source)
       , chunker = new RegExp(simple.source + '(' + attr.source + ')?' + '(' + pseudo.source + ')?')
+        // check if we can pass a selector to a non-CSS3 compatible qSA.
+        // *not* suitable for validating a selector, it's too lose; it's the users' responsibility to pass valid selectors
+        // this regex must be kept in sync with the one in tests.js
+      , css2 = /^(([\w\-]*[#\.]?[\w\-]+|\*)?(\[[\w\-]+([\~\|]?=['"][ \w\-\/\?\&\=\:\.\(\)\!,@#%<>\{\}\$\*\^]+["'])?\])?(\:(link|visited|active|hover))?([\s>+~\.,]|(?:$)))+$/
       , walker = {
           ' ': function (node) {
             return node && node !== html && node.parentNode
@@ -2531,7 +2557,7 @@
     // div.hello[title="world"]:foo('bar'), div, .hello, [title="world"], title, =, world, :foo('bar'), foo, ('bar'), bar]
     function interpret(whole, tag, idsAndClasses, wholeAttribute, attribute, qualifier, value, wholePseudo, pseudo, wholePseudoVal, pseudoVal) {
       var i, m, k, o, classes
-      if (tag && this.tagName.toLowerCase() !== tag) return false
+      if (tag && this.tagName && this.tagName.toLowerCase() !== tag) return false
       if (idsAndClasses && (m = idsAndClasses.match(id)) && m[1] !== this.id) return false
       if (idsAndClasses && (classes = idsAndClasses.match(clas))) {
         for (i = classes.length; i--;) {
@@ -2579,21 +2605,20 @@
     }
   
     // given a selector, first check for simple cases then collect all base candidate matches and filter
-    function _qwery(selector) {
-      var r = [], ret = [], i, l, m, token, tag, els, root, intr, item
+    function _qwery(selector, _root) {
+      var r = [], ret = [], i, l, m, token, tag, els, intr, item, root = _root
         , tokens = tokenCache.g(selector) || tokenCache.s(selector, selector.split(tokenizr))
         , dividedTokens = selector.match(dividers)
   
       if (!tokens.length) return r
-      tokens = tokens.slice(0) // this makes a copy of the array so the cached original is not affected
   
-      token = tokens.pop()
-      root = tokens.length && (m = tokens[tokens.length - 1].match(idOnly)) ? doc[byId](m[1]) : doc
+      token = (tokens = tokens.slice(0)).pop() // copy cached tokens, take the last one
+      if (tokens.length && (m = tokens[tokens.length - 1].match(idOnly))) root = _root[byId](m[1])
       if (!root) return r
   
       intr = q(token)
       // collect base candidates to filter
-      els = root.nodeType !== 9 && dividedTokens && /^[+~]$/.test(dividedTokens[dividedTokens.length - 1]) ?
+      els = root !== _root && root.nodeType !== 9 && dividedTokens && /^[+~]$/.test(dividedTokens[dividedTokens.length - 1]) ?
         function (r) {
           while (root = root.nextSibling) {
             root.nodeType == 1 && (intr[1] ? intr[1] == root.tagName.toLowerCase() : 1) && (r[r.length] = root)
@@ -2681,7 +2706,7 @@
       }
       if (selector && arrayLike(selector)) return flatten(selector)
       if (m = selector.match(easy)) {
-        if (m[1]) return (el = doc[byId](m[1])) ? [el] : []
+        if (m[1]) return (el = root[byId](m[1])) ? [el] : []
         if (m[2]) return arrayify(root[byTag](m[2]))
         if (supportsCSS3 && m[3]) return arrayify(root[byClass](m[3]))
       }
@@ -2695,16 +2720,16 @@
       return function(s) {
         var oid, nid
         if (splittable.test(s)) {
-          if (root !== doc) {
+          if (root.nodeType !== 9) {
            // make sure the el has an id, rewrite the query, set root to doc and run it
            if (!(nid = oid = root.getAttribute('id'))) root.setAttribute('id', nid = '__qwerymeupscotty')
-           s = '#' + nid + s
-           collector(doc, s)
+           s = '[id="' + nid + '"]' + s // avoid byId and allow us to match context element
+           collector(root.parentNode || root, s, true)
            oid || root.removeAttribute('id')
           }
           return;
         }
-        s.length && collector(root, s)
+        s.length && collector(root, s, false)
       }
     }
   
@@ -2713,7 +2738,7 @@
         return (container.compareDocumentPosition(element) & 16) == 16
       } : 'contains' in html ?
       function (element, container) {
-        container = container == doc || container == window ? html : container
+        container = container.nodeType === 9 || container == window ? html : container
         return container !== element && container.contains(element)
       } :
       function (element, container) {
@@ -2730,16 +2755,21 @@
           } :
           function(e, a) { return e.getAttribute(a) }
      }()
+      // does native qSA support CSS3 level selectors
     , supportsCSS3 = function () {
-        // does native qSA support CSS3 level selectors
-        try {
-          return doc[byClass] && doc.querySelector && doc[qSA] && doc[qSA]('body:nth-of-type(1)').length
-        } catch (e) { return false }
+        if (doc[byClass] && doc.querySelector && doc[qSA]) {
+          try {
+            var p = doc.createElement('p')
+            p.innerHTML = '<a/>'
+            return p[qSA](':nth-of-type(1)').length
+          } catch (e) { }
+        }
+        return false
       }()
-    , select = supportsCSS3 ?
-      function (selector, root) {
+      // native support for CSS3 selectors
+    , selectCSS3 = function (selector, root) {
         var result = [], ss, e
-        if (root === doc || !splittable.test(selector)) {
+        if (root.nodeType === 9 || !splittable.test(selector)) {
           // most work is done right here, defer to qSA
           return arrayify(root[qSA](selector))
         }
@@ -2750,13 +2780,27 @@
           else if (e.length) result = result.concat(arrayify(e))
         }))
         return ss.length > 1 && result.length > 1 ? uniq(result) : result
-      } :
-      function (selector, root) {
+      }
+      // native support for CSS2 selectors only
+    , selectCSS2qSA = function (selector, root) {
+        var i, r, l, ss, result = []
+        selector = selector.replace(normalizr, '$1')
+        // safe to pass whole selector to qSA
+        if (!splittable.test(selector) && css2.test(selector)) return arrayify(root[qSA](selector))
+        each(ss = selector.split(','), collectSelector(root, function(ctx, s, rewrite) {
+          // use native qSA if selector is compatile, otherwise use _qwery()
+          r = css2.test(s) ? ctx[qSA](s) : _qwery(s, ctx)
+          for (i = 0, l = r.length; i < l; i++) {
+            if (ctx.nodeType === 9 || rewrite || isAncestor(r[i], root)) result[result.length] = r[i]
+          }
+        }))
+        return ss.length > 1 && result.length > 1 ? uniq(result) : result
+      }
+      // no native selector support
+    , selectNonNative = function (selector, root) {
         var result = [], m, i, l, r, ss
         selector = selector.replace(normalizr, '$1')
         if (m = selector.match(tagAndOrClass)) {
-          // simple & common case, safe to use non-CSS3 qSA if present
-          if (root[qSA]) return arrayify(root[qSA](selector))
           r = classRegex(m[2])
           items = root[byTag](m[1] || '*')
           for (i = 0, l = items.length; i < l; i++) {
@@ -2765,14 +2809,15 @@
           return result
         }
         // more complex selector, get `_qwery()` to do the work for us
-        each(ss = selector.split(','), collectSelector(root, function(ctx, s) {
-          var i = 0, r = _qwery(s), l = r.length
-          for (; i < l; i++) {
-            if (ctx === doc || isAncestor(r[i], root)) result[result.length] = r[i]
+        each(ss = selector.split(','), collectSelector(root, function(ctx, s, rewrite) {
+          r = _qwery(s, ctx)
+          for (i = 0, l = r.length; i < l; i++) {
+            if (ctx.nodeType === 9 || rewrite || isAncestor(r[i], root)) result[result.length] = r[i]
           }
         }))
         return ss.length > 1 && result.length > 1 ? uniq(result) : result
       }
+    , select = supportsCSS3 ? selectCSS3 : doc[qSA] ? selectCSS2qSA : selectNonNative
   
     qwery.uniq = uniq
     qwery.is = is
@@ -2790,35 +2835,20 @@
   provide("qwery", module.exports);
 
   !function (doc, $) {
-    var q = require('qwery')
-      , table = 'table'
-      , nodeMap = {
-            thead: table
-          , tbody: table
-          , tfoot: table
-          , tr: 'tbody'
-          , th: 'tr'
-          , td: 'tr'
-          , fieldset: 'form'
-          , option: 'select'
-        }
-    function create(node, root) {
-      var tag = /^\s*<([^\s>]+)\s*/.exec(node)[1]
-        , el = (root || doc).createElement(nodeMap[tag] || 'div'), els = []
-  
-      el.innerHTML = node
-      var nodes = el.childNodes
-      el = el.firstChild
-      el.nodeType == 1 && els.push(el)
-      while (el = el.nextSibling) (el.nodeType == 1) && els.push(el)
-      return els
-    }
-  
-    $._select = function (s, r) {
-      return /^\s*</.test(s) ? create(s, r) : q(s, r)
-    }
+    var q = require('qwery'), b
   
     $.pseudos = q.pseudos
+  
+    $._select = function (s, r) {
+      // detect if sibling module 'bonzo' is available at run-time
+      // rather than load-time since technically it's not a dependency and
+      // can be loaded in any order
+      // hence the lazy function re-definition
+      $._select = !(b = require('bonzo')) ? q : function (s, r) {
+        return /^\s*</.test(s) ? b.create(s, r) : q(s, r)
+      }
+      return b && /^\s*</.test(s) ? b.create(s, r) : q(s, r)
+    }
   
     $.ender({
       find: function (s) {
