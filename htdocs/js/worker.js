@@ -10,21 +10,22 @@ var MAX_BEATS = 30,
     RGB_MAX   = 250.0,
     RGB_MIN   = 120.0;
 
+var idle = false;
+
 var bd,
     fft;
 
 var ftimer   = 0,
     spectrum = [],
-    beats    = [],
-    canvasBG = {
-        red   : 255,
-        green : 255,
-        blue  : 255
-    };
+    beats    = [];
 
 var audio;
 
-var MAX_ENEMIES = 5;
+var MAX_ENEMIES     = 5,
+    ENEMIES_AVERAGE = 60;
+
+var values  = [],
+    counter = 0;
 
 var prob = [];
 
@@ -66,8 +67,22 @@ function calculateBackground(value) {
     return color;
 }
 
+function calculateAverage(list, length) {
+    var average = 0;
+
+    length = length || list.length;
+
+    for(var i = 0; i < length; i++) {
+        average += list[i];
+    }
+
+    return average/length;
+}
+
 // Inspired by: http://wiki.mozilla.org/Audio_Data_API
 function process(data) {
+    var response = {};
+
     // TODO: stop cheating and do an FFT for each channel
     var fb     = data.frameBuffer,
         signal = new Float32Array(fb.length / audio.channels),
@@ -81,7 +96,7 @@ function process(data) {
 
     fft.forward(signal);
 
-    var spectrum = fft.spectrum;
+    response.spectrum = fft.spectrum;
 
     bd.process(data.time, fft.spectrum);
 
@@ -90,29 +105,38 @@ function process(data) {
     var average = 0;
 
     if (ftimer > 1.0/30.0) {
-        var max = Math.max.apply(Math, spectrum) * 10.0;
+        var max = Math.max.apply(Math, response.spectrum) * 10.0;
 
-        beats.shift();
+        if (beats.length >= MAX_BEATS) {
+            beats.shift();
+        }
+
         beats.push(max);
 
-        for(var i = 0; i < MAX_BEATS; i++) {
-            average += beats[i];
-        }
-        average = average/MAX_BEATS;
+        average = calculateAverage(beats);
 
-        canvasBG = calculateBackground(average);
+        response.canvasBG = calculateBackground(average);
     }
 
-    var num_enemies = calculateEnemies(average);
+    if (!idle) {
+        counter++;
 
-    postMessage({
-        spectrum    : spectrum,
-        canvasBG    : canvasBG,
-        num_enemies : num_enemies
-    });
+        var num_enemies = calculateEnemies(average);
+        values.push(num_enemies);
+
+        if (counter == ENEMIES_AVERAGE) {
+            response.num_enemies = calculateAverage(values) | 0;
+
+            values  = [];
+            counter = 0;
+        }
+    }
+
+    postMessage(response);
 }
 
 function setup(data) {
+    idle  = data.idle;
     audio = data.audio;
 
     for (var i = 0; i < MAX_BEATS; i++) {
