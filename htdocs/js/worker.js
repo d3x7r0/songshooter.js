@@ -21,7 +21,7 @@ var ftimer   = 0,
 
 var audio;
 
-var MAX_ENEMIES     = 5,
+var MAX_ENEMIES     = 10,
     ENEMIES_AVERAGE = 60;
 
 var values  = [],

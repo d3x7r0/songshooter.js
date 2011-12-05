@@ -346,7 +346,9 @@ var Picaso = (function(){
 
         // Trigger a tick
         $(Picaso).trigger('tick.picaso', {
-            paused : paused
+            paused : paused,
+            delta  : delta,
+            now    : now
         });
 
         // Paint the layers
@@ -580,8 +582,11 @@ var AudioProcessor = (function(){
 
 // The module that oversees the game execution
 var Overlord = (function() {
-    var FIRE_RATE      = 100,
-        BULLET_SPEED   = 1.05;
+    var FIRE_RATE       = 100,
+        BULLET_SPEED    = 1.0/100.0,
+        ENEMY_MAX_SPEED = 1.0,
+        ENEMY_SPEED     = 1.0/1000.0,
+        ENEMY_SPRITE    = 'img/ship2.svg';
 
     var running = false,
         paused  = false;
@@ -594,21 +599,85 @@ var Overlord = (function() {
 
     var canvasSize;
 
+    var enemySprite,
+        enemySpriteSize,
+        spriteScaling = 1;
+
     var bulletsLastUpdate = 0;
 
-    // TODO: generate the enemies
-    function generateEnemies(data) {
+    function setSpriteScaling(scaling) {
+        spriteScaling = scaling;
+
+        // Set the sprites size
+        enemySpriteSize = {
+            height : enemySprite.height * spriteScaling | 0,
+            width  : enemySprite.width  * spriteScaling | 0
+        };
     }
 
-    // TODO: generate bullets
-    function generateBullets(player) {
+    function generateEnemies(data) {
+        for (var i = 0; i < data; i++) {
+            // TODO: prevent enemies from spawning one on top of the other
+            var pos = (Math.random() * (canvasSize.height - enemySpriteSize.height*2.0)) | 0;
+
+            pos += enemySpriteSize.height;
+
+            // TODO: vary the enemies
+            var enemy = {
+                x : canvasSize.width,
+                y : pos,
+                sprite : enemySprite,
+                vel : {
+                    x : 0,
+                    y : 0,
+                    top : {
+                        x : ENEMY_MAX_SPEED,
+                        y : ENEMY_MAX_SPEED
+                    }
+                },
+                accel : {
+                    x : -ENEMY_SPEED,
+                    y : 0
+                }
+            };
+
+            // TODO: remove this hard dependency and use an event
+            enemy.id = Picaso.addObject(enemy);
+
+            enemies.push(enemy);
+        }
+    }
+
+    function updateEnemies(delta, now) {
+        // Update enemy position and clean those outside the screen
+        var validEnemies = [];
+
+        for(var i = 0; i < enemies.length; i++) {
+            // Update position
+            enemies[i] = Newton.move2D(enemies[i], delta);
+
+            // Clean those outside the screen
+            if (enemies[i].x > -enemySpriteSize.width) {
+                validEnemies.push(enemies[i]);
+
+                // TODO: remove this hard dependency and use an event
+                Picaso.addObject(enemies[i]);
+            } else {
+                // TODO: remove this hard dependency and use an event
+                Picaso.removeObject(enemies[i].id);
+            }
+        }
+
+        enemies = validEnemies;
+    }
+
+    function generateBullets(player, delta, now) {
         // Update bullet position and clean those outside the screen
         var validBullets = [];
 
         for(var i = 0; i < bullets.length; i++) {
             // Update position
-            // TODO: use a proper acceleration value
-            bullets[i].x = bullets[i].x * BULLET_SPEED;
+            bullets[i] = Newton.move2D(bullets[i], delta);
 
             // Clean those outside the screen
             if (bullets[i].x <= canvasSize.width) {
@@ -625,13 +694,22 @@ var Overlord = (function() {
         bullets = validBullets;
 
         // Generate new bullet
-        if (Date.now() - bulletsLastUpdate > FIRE_RATE) {
+        // TODO: different types of bullets based on a powerup
+        if (now - bulletsLastUpdate > FIRE_RATE) {
             var bullet = {
                 x    : player.x + player.size.width/2,
                 y    : player.y,
                 size : {
                     width  : 5,
                     height : 5
+                },
+                vel : {
+                    x : 0,
+                    y : 0
+                },
+                accel : {
+                    x : BULLET_SPEED,
+                    y : 0
                 }
             };
 
@@ -646,10 +724,9 @@ var Overlord = (function() {
 
     function tock(event) {
         if (running && !paused) {
-            generateBullets(player);
+            updateEnemies(event.delta, event.now);
+            generateBullets(player, event.delta, event.now);
 
-            // TODO: update enemies
-            // TODO: update bullets
             // TODO: check collisions
         }
     }
@@ -769,6 +846,17 @@ var Overlord = (function() {
             width  : canvas[0].width,
             height : canvas[0].height
         };
+
+        // Load the sprites
+        enemySprite     = new Image();
+        enemySprite.src = ENEMY_SPRITE;
+
+        // Set the sprites size
+        enemySpriteSize = {
+            height : enemySprite.height | 0,
+            width  : enemySprite.width | 0
+        };
+
 
         // Register the keyboard listeners
         KeyboardCat.register(KeyboardCat.KEYCODES.PAUSE, togglePause);
