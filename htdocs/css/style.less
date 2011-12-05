@@ -54,13 +54,21 @@ footer { text-align: right; font-style: italic; }
         }
     }
 
-    .score {
+    .score,
+    .life {
         text-align: right;
 
         .value {
             display: inline-block;
-            min-width: 96em/12*2;
         }
+    }
+
+    .score .value {
+        min-width: 96em/12*2;
+    }
+
+    .life .value {
+        min-width: 96em/12*1.4;
     }
 }
 

@@ -30,18 +30,18 @@ var values  = [],
 var prob = [];
 
 function calculateEnemies(average) {
-    var num_enemies = prob.length-1,
-        found       = false;
+    var numEnemies = prob.length-1,
+        found      = false;
 
-    while(num_enemies > 0 && !found) {
-        if (average > prob[num_enemies]) {
+    while(numEnemies > 0 && !found) {
+        if (average > prob[numEnemies]) {
             found = true;
         } else {
-            num_enemies--;
+            numEnemies--;
         }
     }
 
-    return num_enemies;
+    return numEnemies;
 }
 
 function calculateBackground(value) {
@@ -121,11 +121,11 @@ function process(data) {
     if (!idle) {
         counter++;
 
-        var num_enemies = calculateEnemies(average);
-        values.push(num_enemies);
+        var numEnemies = calculateEnemies(average);
+        values.push(numEnemies);
 
         if (counter == ENEMIES_AVERAGE) {
-            response.num_enemies = calculateAverage(values) | 0;
+            response.numEnemies = calculateAverage(values) | 0;
 
             values  = [];
             counter = 0;

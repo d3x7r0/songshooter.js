@@ -121,11 +121,11 @@ var KeyboardCat = (function() {
 
 // The physics module
 var Newton = (function(){
-    function calculate_velocity(velocity, acceleration, delta) {
+    function calculateVelocity(velocity, acceleration, delta) {
         return velocity + acceleration * delta;
     }
 
-    function calculate_position(position, velocity, acceleration, delta) {
+    function calculatePosition(position, velocity, acceleration, delta) {
         return position + velocity * delta + acceleration * Math.pow(delta, 2.0) / 2.0;
     }
 
@@ -133,8 +133,8 @@ var Newton = (function(){
         var tmp = object;
 
         // Calculate the target speed
-        tmp.vel.x = calculate_velocity(object.vel.x, object.accel.x, delta);
-        tmp.vel.y = calculate_velocity(object.vel.y, object.accel.y, delta);
+        tmp.vel.x = calculateVelocity(object.vel.x, object.accel.x, delta);
+        tmp.vel.y = calculateVelocity(object.vel.y, object.accel.y, delta);
 
         // In case there's a limit cut the acceleration and fix the speed
         if (object.vel.top) {
@@ -150,8 +150,8 @@ var Newton = (function(){
         }
 
         // Calculate the new position of the object
-        tmp.x = calculate_position(tmp.x, tmp.vel.x, tmp.accel.x, delta);
-        tmp.y = calculate_position(tmp.y, tmp.vel.y, tmp.accel.y, delta);
+        tmp.x = calculatePosition(tmp.x, tmp.vel.x, tmp.accel.x, delta);
+        tmp.y = calculatePosition(tmp.y, tmp.vel.y, tmp.accel.y, delta);
 
         return tmp;
     }
@@ -169,7 +169,7 @@ var Picaso = (function(){
         PAUSED_FONT_SIZE = 64;
 
     var canvas,
-        canvas_size,
+        canvasSize,
         ctx;
 
     var quality = 1.0;
@@ -186,35 +186,35 @@ var Picaso = (function(){
 
     var uids = 0;
 
-    var frames          = 0,
-        fps             = 0,
-        fps_last_update = 0,
-        show_fps        = false;
+    var frames        = 0,
+        fps           = 0,
+        fpsLastUpdate = 0,
+        showFps       = false;
 
     function paintBackground(delta, now) {
         // Paint the background color
         ctx.fillStyle = 'rgb(' + canvasBG.red + ',' + canvasBG.green + ',' + canvasBG.blue + ')';
-        ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
+        ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
         // Wash out the background a bit to make it less shocking
         ctx.fillStyle = "rgba(255,255,255,0.1)";
-        ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
+        ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
     }
 
     function paintSpectrum(delta, now) {
         ctx.fillStyle = "rgba(0,0,0,0.2)";
 
-        for (var i = 0; i < spectrum.length && i*2 <= canvas_size.width/2; i++) {
+        for (var i = 0; i < spectrum.length && i*2 <= canvasSize.width/2; i++) {
             // multiply spectrum by a zoom value
-            var magnitude = (spectrum[i] * canvas_size.height * 6.0);
+            var magnitude = (spectrum[i] * canvasSize.height * 6.0);
 
             // Draw rectangle bars for each frequency bin
             var X      = i * 2 - 1,
-                Y      = (canvas_size.height/2.0 - magnitude) | 0,
+                Y      = (canvasSize.height/2.0 - magnitude) | 0,
                 height = (magnitude * 2.0) | 0;
 
             ctx.fillRect(X, Y, 1, height || 1);
-            ctx.fillRect(canvas_size.width - X, Y, 1, height || 1);
+            ctx.fillRect(canvasSize.width - X, Y, 1, height || 1);
         }
     }
 
@@ -222,7 +222,7 @@ var Picaso = (function(){
         if (paused) {
             // Print paused if the game is paused
             ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.fillRect(0, 0, canvas_size.width, canvas_size.height);
+            ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
             var size = (PAUSED_FONT_SIZE * quality) | 0;
 
@@ -230,10 +230,10 @@ var Picaso = (function(){
             ctx.font      = size + "px monospace";
 
             ctx.fillText("PAUSED",
-                         (canvas_size.width/2) | 0, (canvas_size.height/2 + size/3) | 0);
+                         (canvasSize.width/2) | 0, (canvasSize.height/2 + size/3) | 0);
         }
 
-        if (show_fps) {
+        if (showFps) {
             // Reset the color
             ctx.fillStyle = "#000";
 
@@ -280,11 +280,11 @@ var Picaso = (function(){
                 y : false
             };
 
-            if (((pos.x + size.width/2.0) | 0) > canvas_size.width) {
+            if (((pos.x + size.width/2.0) | 0) > canvasSize.width) {
                 out.x = true;
             }
 
-            if (((pos.y + size.height/2.0) | 0) > canvas_size.height) {
+            if (((pos.y + size.height/2.0) | 0) > canvasSize.height) {
                 out.y = true;
             }
 
@@ -338,10 +338,10 @@ var Picaso = (function(){
         // FPS Counting
         frames++;
 
-        if (now - fps_last_update > 1000) {
-            fps_last_update = now;
-            fps             = frames;
-            frames          = 0;
+        if (now - fpsLastUpdate > 1000) {
+            fpsLastUpdate = now;
+            fps           = frames;
+            frames        = 0;
         }
 
         // Trigger a tick
@@ -357,7 +357,7 @@ var Picaso = (function(){
     }
 
     function updateQualityIndicator(item) {
-        $(item).find('span').text((canvas_size.width != MAX_RESOLUTION) ? " (low)" : " (high)");
+        $(item).find('span').text((canvasSize.width != MAX_RESOLUTION) ? " (low)" : " (high)");
     }
 
     function updateQuality(multiplier) {
@@ -368,7 +368,7 @@ var Picaso = (function(){
         canvas.height = canvas.height * multiplier;
 
         // Cache the canvas size
-        canvas_size = {
+        canvasSize = {
             width  : canvas.width,
             height : canvas.height
         };
@@ -384,13 +384,13 @@ var Picaso = (function(){
         }
 
         // Figure out if we're supposed to double or halve the resolution
-        var multiplier = (canvas_size.width != MAX_RESOLUTION) ? 2.0 : 0.5;
+        var multiplier = (canvasSize.width != MAX_RESOLUTION) ? 2.0 : 0.5;
 
         updateQuality(multiplier);
     }
 
     function toggleFPS() {
-        return (show_fps = !show_fps);
+        return (showFps = !showFps);
     }
 
     function pause() {
@@ -430,6 +430,10 @@ var Picaso = (function(){
         return item.id;
     }
 
+    function cleanObjects() {
+        objects = [];
+    }
+
     function init() {
         canvas = $('#screen')[0];
         ctx    = canvas.getContext('2d');
@@ -439,7 +443,7 @@ var Picaso = (function(){
 
         // Register the keyboard listeners
         KeyboardCat.register('L', toggleFPS, { shift : true });
-        KeyboardCat.register('K', toggleQuality, { shift : true });
+        KeyboardCat.register('K', toggleQuality, { shift : true, raw : true });
 
         // Set the render quality to 1.0
         updateQuality(1.0);
@@ -457,7 +461,8 @@ var Picaso = (function(){
         setCanvasBG     : setCanvasBG,
         setSpectrumData : setSpectrumData,
         addObject       : addObject,
-        removeObject    : removeObject
+        removeObject    : removeObject,
+        cleanObjects    : cleanObjects
     };
 })();
 
@@ -477,8 +482,8 @@ var AudioProcessor = (function(){
             $(AudioProcessor).trigger('canvasbg.audio', event.data.canvasBG);
         }
 
-        if (event.data.num_enemies) {
-            $(AudioProcessor).trigger('enemies.audio', event.data.num_enemies);
+        if (event.data.numEnemies) {
+            $(AudioProcessor).trigger('enemies.audio', event.data.numEnemies);
         }
     }
 
@@ -587,9 +592,9 @@ var Overlord = (function() {
         enemies = [],
         player  = {};
 
-    var canvas_size;
+    var canvasSize;
 
-    var bullets_last_update = 0;
+    var bulletsLastUpdate = 0;
 
     // TODO: generate the enemies
     function generateEnemies(data) {
@@ -598,7 +603,7 @@ var Overlord = (function() {
     // TODO: generate bullets
     function generateBullets(player) {
         // Update bullet position and clean those outside the screen
-        var valid_bullets = [];
+        var validBullets = [];
 
         for(var i = 0; i < bullets.length; i++) {
             // Update position
@@ -606,8 +611,8 @@ var Overlord = (function() {
             bullets[i].x = bullets[i].x * BULLET_SPEED;
 
             // Clean those outside the screen
-            if (bullets[i].x <= canvas_size.width) {
-                valid_bullets.push(bullets[i]);
+            if (bullets[i].x <= canvasSize.width) {
+                validBullets.push(bullets[i]);
 
                 // TODO: remove this hard dependency and use an event
                 Picaso.addObject(bullets[i]);
@@ -617,10 +622,10 @@ var Overlord = (function() {
             }
         }
 
-        bullets = valid_bullets;
+        bullets = validBullets;
 
         // Generate new bullet
-        if (Date.now() - bullets_last_update > FIRE_RATE) {
+        if (Date.now() - bulletsLastUpdate > FIRE_RATE) {
             var bullet = {
                 x    : player.x + player.size.width/2,
                 y    : player.y,
@@ -635,7 +640,7 @@ var Overlord = (function() {
 
             bullets.push(bullet);
 
-            bullets_last_update = Date.now();
+            bulletsLastUpdate = Date.now();
         }
     }
 
@@ -678,6 +683,23 @@ var Overlord = (function() {
         }
     }
 
+    function updatePlayer(data) {
+        // TODO: figure out why data is empty some times
+        if (data.number) {
+            player = data;
+
+            var playerObject = {
+                id     : 'player-' + data.number,
+                x      : data.x,
+                y      : data.y,
+                sprite : data.sprite
+            };
+
+            // TODO: remove this hard dependency and use an event
+            Picaso.addObject(playerObject);
+        }
+    }
+
     function start(file) {
         running = true;
 
@@ -702,6 +724,7 @@ var Overlord = (function() {
 
         running     = false;
         currentFile = null;
+        player      = null;
 
         $('#screen').css('cursor', '');
         $('#controls .ingame').hide();
@@ -710,28 +733,14 @@ var Overlord = (function() {
     }
 
     function restart(event) {
-        var file = currentFile;
+        var file      = currentFile,
+            playerTmp = player;
 
         abort(event);
 
         start(currentFile = file);
-    }
 
-    function updatePlayer(data) {
-        // TODO: figure out why data is empty some times
-        if (data.number) {
-            player = data;
-
-            var playerObject = {
-                id     : 'player-' + data.number,
-                x      : data.x,
-                y      : data.y,
-                sprite : data.sprite
-            };
-
-            // TODO: remove this hard dependency and use an event
-            Picaso.addObject(playerObject);
-        }
+        updatePlayer(playerTmp);
     }
 
     function fileDrop(e) {
@@ -755,8 +764,8 @@ var Overlord = (function() {
 
     function init() {
         // Save the canvas size
-        var canvas    = $('#screen');
-        canvas_size   = {
+        var canvas       = $('#screen');
+            canvasSize   = {
             width  : canvas[0].width,
             height : canvas[0].height
         };
@@ -788,30 +797,43 @@ var Overlord = (function() {
 var PlayerController = (function() {
     var PLAYER_SPRITE  = 'img/ship1.svg',
         DEFAULT_LIFE   = 3,
-        MAX_LIFE       = 10;
+        MAX_LIFE       = 10,
+        LIFE_CHARACTER = '&#x2764;';
 
     var playerSprite,
         playerSpriteSize,
         spriteScaling = 1;
 
     var canvas,
-        canvas_offset,
-        canvas_size;
+        canvasOffset,
+        canvasSize;
 
     var running = false;
 
     var player;
 
+    function updateLife() {
+        var life = '';
+
+        for(var i = 0; i < player.life; i++) {
+            life = life + ' ' + LIFE_CHARACTER;
+        }
+
+        $('#controls .life .value').html(life);
+    }
+
     function reset() {
         player = {
             x      : 5,
-            y      : canvas_size.height/2,
+            y      : canvasSize.height/2,
             score  : 0,
             life   : DEFAULT_LIFE,
             sprite : playerSprite,
             size   : playerSpriteSize,
             number : 1
         };
+
+        updateLife();
 
         $(PlayerController).trigger('reset.player', player);
     }
@@ -828,27 +850,27 @@ var PlayerController = (function() {
         player.size = playerSpriteSize;
     }
 
-    function updatePlayerPosition(event) {
+    function updatePosition(event) {
         if (Overlord.isRunning() && !Overlord.isPaused()) {
             // Remove the page offset
-            player.x = event.pageX - canvas_offset.left;
-            player.y = event.pageY - canvas_offset.top;
+            player.x = event.pageX - canvasOffset.left;
+            player.y = event.pageY - canvasOffset.top;
 
             // scale to the canvas coordinates
-            player.x = player.x * canvas_size.width / canvas.width();
-            player.y = player.y * canvas_size.height / canvas.height();
+            player.x = player.x * canvasSize.width / canvas.width();
+            player.y = player.y * canvasSize.height / canvas.height();
 
             // check the bounds
             if (player.x - playerSpriteSize.width/2 < 0) {
                 player.x = playerSpriteSize.width/2;
             }
 
-            if (player.x > canvas_size.width - playerSpriteSize.width/2) {
-                player.x = canvas_size.width - playerSpriteSize.width/2;
+            if (player.x > canvasSize.width - playerSpriteSize.width/2) {
+                player.x = canvasSize.width - playerSpriteSize.width/2;
             }
 
-            if (player.y > canvas_size.height - playerSpriteSize.height/2) {
-                player.y = canvas_size.height - playerSpriteSize.height/2;
+            if (player.y > canvasSize.height - playerSpriteSize.height/2) {
+                player.y = canvasSize.height - playerSpriteSize.height/2;
             }
 
             if (player.y - playerSpriteSize.height/2 < 0) {
@@ -887,15 +909,15 @@ var PlayerController = (function() {
         };
 
         // Save a reference to the canvas and it's offset data
-        canvas        = $('#screen');
-        canvas_offset = canvas.offset();
-        canvas_size   = {
+        canvas       = $('#screen');
+        canvasOffset = canvas.offset();
+        canvasSize   = {
             width  : canvas[0].width,
             height : canvas[0].height
         };
 
         // Register the mouse and keyboard listeners
-        $(canvas).mousemove(updatePlayerPosition);
+        $(canvas).mousemove(updatePosition);
 
         // Reset the player data
         reset();
@@ -933,6 +955,7 @@ $.domReady(function() {
     // Tie all the relevant parties to the Overlord for pausing/resuming
     $(Overlord).on('pause.overlord', Picaso.pause);
     $(Overlord).on('resume.overlord', Picaso.resume);
+    $(Overlord).on('abort.overlord', Picaso.cleanObjects);
 
     $(Overlord).on('start.overlord', AudioProcessor.start);
     $(Overlord).on('pause.overlord', AudioProcessor.pause);
