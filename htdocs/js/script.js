@@ -763,19 +763,17 @@ var Overlord = (function() {
 
     function updatePlayer(data) {
         // TODO: figure out why data is empty some times
-        if (data.number) {
-            player = data;
+        player = data;
 
-            var playerObject = {
-                id     : 'player-' + data.number,
-                x      : data.x,
-                y      : data.y,
-                sprite : data.sprite
-            };
+        var playerObject = {
+            id     : 'player-' + data.number,
+            x      : data.x,
+            y      : data.y,
+            sprite : data.sprite
+        };
 
-            // TODO: remove this hard dependency and use an event
-            Picaso.addObject(playerObject);
-        }
+        // TODO: remove this hard dependency and use an event
+        Picaso.addObject(playerObject);
     }
 
     function start(file) {
@@ -786,6 +784,9 @@ var Overlord = (function() {
 
         $('#screen').css('cursor', 'none');
         $('#controls .ingame').show();
+        $('#start_menu').hide();
+
+        currentFile = file;
 
         var data = {
             src : file
@@ -806,6 +807,7 @@ var Overlord = (function() {
 
         $('#screen').css('cursor', '');
         $('#controls .ingame').hide();
+        $('#start_menu').show();
 
         $(Overlord).trigger('abort.overlord');
     }
@@ -830,14 +832,27 @@ var Overlord = (function() {
 
         var uri = window.URL.createObjectURL(dt.files[0]);
 
-        currentFile = uri;
-
         start(uri);
     }
 
     function drag(e) {
         e.stopPropagation();
         e.preventDefault();
+    }
+
+    function fileOpen(e) {
+        if (this.files[0]) {
+            var uri = window.URL.createObjectURL(this.files[0]);
+
+            start(uri);
+        }
+    }
+
+    function filePopup(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        $('#file_form')[0].click();
     }
 
     function init() {
@@ -858,7 +873,6 @@ var Overlord = (function() {
             width  : enemySprite.width | 0
         };
 
-
         // Register the keyboard listeners
         KeyboardCat.register(KeyboardCat.KEYCODES.PAUSE, togglePause);
         $('#controls ul .pause').click(togglePause);
@@ -867,8 +881,13 @@ var Overlord = (function() {
 
         $('#controls ul .abort').click(abort);
 
+        $('#start_menu .open').click(filePopup);
+
         // Register the drag'n'drop listeners
         $('html').on('drop', fileDrop).on('dragenter dragover', drag);
+
+        // Register the file handler
+        $('#file_form').on('change', fileOpen);
     }
 
     $.domReady(init);
@@ -913,7 +932,7 @@ var PlayerController = (function() {
 
     function reset() {
         player = {
-            x      : 5,
+            x      : canvasSize.width/2 + 5,
             y      : canvasSize.height/2,
             score  : 0,
             life   : DEFAULT_LIFE,
@@ -924,7 +943,7 @@ var PlayerController = (function() {
 
         updateLife();
 
-        $(PlayerController).trigger('reset.player', player);
+        $(PlayerController).trigger('moved.player', player);
     }
 
     function setSpriteScaling(scaling) {
@@ -1036,7 +1055,6 @@ $.domReady(function() {
 
     // Tie the Player reset to the Overlord start event
     $(Overlord).on('start.overlord', PlayerController.reset);
-    $(PlayerController).on('reset.player', Overlord.updatePlayer);
 
     // Tie the Overlord to the Picaso Tick event
     $(Picaso).on('tick.picaso', Overlord.tock);

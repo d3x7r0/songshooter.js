@@ -26,15 +26,52 @@ a:focus {
 footer { text-align: right; font-style: italic; }
 
 #main {
+    position: relative;
     overflow: visible;
 }
 
-#screen {
-    @ratio: 16/9;
+@ratio: 16/9;
+@screen_width : 96em;
 
+#start_menu {
     display: block;
-    width: 96em;
-    height: (96em/@ratio);
+    text-align: center;
+    position: absolute;
+    width: 100%;
+    left: 0;
+    top: (@screen_width/@ratio)/2;
+    margin: 0;
+    padding: 0;
+
+    li {
+        position: relative;
+        font-size: 4em;
+        line-height: 1.3em;
+        margin-top: -1.3em;
+        list-style: none;
+        font-weight: bold;
+        text-shadow: 5px 5px 8px rgba(0,0,0,0.3);
+
+        &.file {
+            z-index: 1;
+
+            input {
+                cursor: pointer;
+            }
+        }
+
+        a:hover,
+        a:active,
+        a:focus {
+            color: darken(#fff, 25%);
+        }
+    }
+}
+
+#screen {
+    display: block;
+    width: @screen_width;
+    height: (@screen_width/@ratio);
     background: #000;
     box-shadow: 0 0 8px rgba(255,255,255,0.3);
 }
