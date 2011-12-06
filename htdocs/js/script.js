@@ -165,7 +165,7 @@ var Newton = (function(){
 var Picaso = (function(){
     var MAX_RESOLUTION   = 960,
         SPRITE_SCALING   = 0.25,
-        FPS_FONT_SIZE    = 14,
+        FPS_FONT_SIZE    = 16,
         PAUSED_FONT_SIZE = 64;
 
     var canvas,
@@ -241,7 +241,7 @@ var Picaso = (function(){
             var pos = (FPS_FONT_SIZE + 2) * quality | 0;
 
             ctx.textAlign = "start";
-            ctx.font      = (FPS_FONT_SIZE*quality) + "px monospace";
+            ctx.font      = ((FPS_FONT_SIZE*quality) | 0) + "px monospace";
 
             ctx.fillText(fps + " fps", pos/2 | 0, pos);
         }
