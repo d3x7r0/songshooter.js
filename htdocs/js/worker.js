@@ -22,7 +22,7 @@ var ftimer   = 0,
 var audio;
 
 var MAX_ENEMIES     = 10,
-    ENEMIES_AVERAGE = 60;
+    ENEMIES_AVERAGE = 30;
 
 var values  = [],
     counter = 0;
