@@ -584,8 +584,9 @@ var AudioProcessor = (function(){
 var Overlord = (function() {
     var FIRE_RATE       = 100,
         BULLET_SPEED    = 1.0/100.0,
-        ENEMY_MAX_SPEED = 1.0,
-        ENEMY_SPEED     = 1.0/1000.0,
+        ENEMY_MAX_SPEED = 0.5,
+        ENEMY_SPEED     = 0.3,
+        ENEMY_ACCEL     = 1.0/10000.0,
         ENEMY_SPRITE    = 'img/ship2.svg';
 
     var running = false,
@@ -618,9 +619,9 @@ var Overlord = (function() {
     function generateEnemies(data) {
         for (var i = 0; i < data; i++) {
             // TODO: prevent enemies from spawning one on top of the other
-            var pos = (Math.random() * (canvasSize.height - enemySpriteSize.height*2.0)) | 0;
+            var pos = (Math.random() * (canvasSize.height - enemySpriteSize.height)) | 0;
 
-            pos += enemySpriteSize.height;
+            pos += enemySpriteSize.height/2.0 | 0;
 
             // TODO: vary the enemies
             var enemy = {
@@ -628,7 +629,7 @@ var Overlord = (function() {
                 y : pos,
                 sprite : enemySprite,
                 vel : {
-                    x : 0,
+                    x : -ENEMY_SPEED,
                     y : 0,
                     top : {
                         x : ENEMY_MAX_SPEED,
@@ -636,7 +637,7 @@ var Overlord = (function() {
                     }
                 },
                 accel : {
-                    x : -ENEMY_SPEED,
+                    x : -ENEMY_ACCEL,
                     y : 0
                 }
             };
