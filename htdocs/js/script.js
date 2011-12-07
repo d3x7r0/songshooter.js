@@ -40,7 +40,9 @@
 
 // Keyboard handling abstraction layer
 var KeyboardCat = (function() {
-    var callbacks = {};
+    var callbacks        = {},
+        callbacksKeyDown = {},
+        callbacksKeyUp   = {};
 
     var KEYCODES = {
             BKSP      : 8,
@@ -74,8 +76,16 @@ var KeyboardCat = (function() {
             charCode = charCode.charCodeAt();
         }
 
-        if (!callbacks[charCode]) {
-            callbacks[charCode] = [];
+        var cbs = callbacks;
+
+        if (opts.keyDown) {
+            cbs = callbacksKeyDown;
+        } else if (opts.keyUp) {
+            cbs = callbacksKeyUp;
+        }
+
+        if (!cbs[charCode]) {
+            cbs[charCode] = [];
         }
 
         var time = opts.time || DEFAULT_THROTTLE_TIME;
@@ -87,7 +97,7 @@ var KeyboardCat = (function() {
             cb = $.throttle(callback, time);
         }
 
-        callbacks[charCode][callbacks[charCode].length] = {
+        cbs[charCode][cbs[charCode].length] = {
             callback : cb,
             opts     : opts
         };
@@ -107,8 +117,38 @@ var KeyboardCat = (function() {
         }
     }
 
+    function onKeyDown(e) {
+        var cbs = callbacksKeyDown[e.keyCode];
+
+        if (cbs) {
+            $(cbs).each(function(cb) {
+                if (cb.opts.shift && !e.shiftKey) {
+                    return;
+                }
+
+                cb.callback(e);
+            });
+        }
+    }
+
+    function onKeyUp(e) {
+        var cbs = callbacksKeyUp[e.keyCode];
+
+        if (cbs) {
+            $(cbs).each(function(cb) {
+                if (cb.opts.shift && !e.shiftKey) {
+                    return;
+                }
+
+                cb.callback(e);
+            });
+        }
+    }
+
     function init() {
         $(document).on('keypress', onKeyPress);
+        $(document).on('keydown', onKeyDown);
+        $(document).on('keyup', onKeyUp);
     }
 
     $.domReady(init);
@@ -132,20 +172,29 @@ var Newton = (function(){
     function move2D(object, delta) {
         var tmp = object;
 
+        if (object.accel.x === 0) {
+            tmp.vel.x = tmp.vel.x / 2.0;
+        }
+
+        if (object.accel.y === 0) {
+            tmp.vel.y = tmp.vel.y / 2.0;
+        }
+
         // Calculate the target speed
         tmp.vel.x = calculateVelocity(object.vel.x, object.accel.x, delta);
         tmp.vel.y = calculateVelocity(object.vel.y, object.accel.y, delta);
 
         // In case there's a limit cut the acceleration and fix the speed
         if (object.vel.top) {
-            if (tmp.vel.x > object.vel.top.x) {
-                tmp.vel.x   = object.vel.top.x;
-                tmp.accel.x = 0;
+            var x_mult = (tmp.vel.x >= 0) ? 1.0 : -1.0,
+                y_mult = (tmp.vel.y >= 0) ? 1.0 : -1.0;
+
+            if (tmp.vel.x * x_mult > object.vel.top.x) {
+                tmp.vel.x   = object.vel.top.x * x_mult;
             }
 
-            if (tmp.vel.y > object.vel.top.y) {
-                tmp.vel.y   = object.vel.top.x;
-                tmp.accel.y = 0;
+            if (tmp.vel.y * y_mult > object.vel.top.y) {
+                tmp.vel.y   = object.vel.top.y * y_mult;
             }
         }
 
@@ -903,10 +952,12 @@ var Overlord = (function() {
 
 // The module responsible for controlling the player
 var PlayerController = (function() {
-    var PLAYER_SPRITE  = 'img/ship1.svg',
-        DEFAULT_LIFE   = 3,
-        MAX_LIFE       = 10,
-        LIFE_CHARACTER = '&#x2764;';
+    var PLAYER_SPRITE    = 'img/ship1.svg',
+        DEFAULT_LIFE     = 3,
+        MAX_LIFE         = 10,
+        LIFE_CHARACTER   = '&#x2764;',
+        PLAYER_ACCEL     = 1.0/1000.0,
+        PLAYER_MAX_SPEED = 1.0;
 
     var playerSprite,
         playerSpriteSize,
@@ -938,7 +989,19 @@ var PlayerController = (function() {
             life   : DEFAULT_LIFE,
             sprite : playerSprite,
             size   : playerSpriteSize,
-            number : 1
+            number : 1,
+            accel  : {
+                x : 0,
+                y : 0
+            },
+            vel    : {
+                x   : 0,
+                y   : 0,
+                top : {
+                    x : PLAYER_MAX_SPEED,
+                    y : PLAYER_MAX_SPEED
+                }
+            }
         };
 
         updateLife();
@@ -958,34 +1021,82 @@ var PlayerController = (function() {
         player.size = playerSpriteSize;
     }
 
+    // TODO: improve the stop functions
+    function stopY(event) {
+        if (Overlord.isRunning() && !Overlord.isPaused()) {
+            player.accel.y = 0;
+        }
+    }
+
+    function stopX(event) {
+        if (Overlord.isRunning() && !Overlord.isPaused()) {
+            player.accel.x = 0;
+        }
+    }
+
+    function checkBounds() {
+        // check the bounds
+        if (player.x - playerSpriteSize.width/2 < 0) {
+            player.x = playerSpriteSize.width/2;
+
+            stopX();
+            player.vel.x = 0;
+        }
+
+        if (player.x > canvasSize.width - playerSpriteSize.width/2) {
+            player.x = canvasSize.width - playerSpriteSize.width/2;
+
+            stopX();
+            player.vel.x = 0;
+        }
+
+        if (player.y > canvasSize.height - playerSpriteSize.height/2) {
+            player.y = canvasSize.height - playerSpriteSize.height/2;
+
+            stopY();
+            player.vel.y = 0;
+        }
+
+        if (player.y - playerSpriteSize.height/2 < 0) {
+            player.y = playerSpriteSize.height/2;
+
+            stopY();
+            player.vel.y = 0;
+        }
+    }
+
     function updatePosition(event) {
         if (Overlord.isRunning() && !Overlord.isPaused()) {
-            // Remove the page offset
-            player.x = event.pageX - canvasOffset.left;
-            player.y = event.pageY - canvasOffset.top;
-
-            // scale to the canvas coordinates
-            player.x = player.x * canvasSize.width / canvas.width();
-            player.y = player.y * canvasSize.height / canvas.height();
+            player = Newton.move2D(player, event.delta);
 
             // check the bounds
-            if (player.x - playerSpriteSize.width/2 < 0) {
-                player.x = playerSpriteSize.width/2;
-            }
-
-            if (player.x > canvasSize.width - playerSpriteSize.width/2) {
-                player.x = canvasSize.width - playerSpriteSize.width/2;
-            }
-
-            if (player.y > canvasSize.height - playerSpriteSize.height/2) {
-                player.y = canvasSize.height - playerSpriteSize.height/2;
-            }
-
-            if (player.y - playerSpriteSize.height/2 < 0) {
-                player.y = playerSpriteSize.height/2;
-            }
+            checkBounds();
 
             $(PlayerController).trigger('moved.player', player);
+        }
+    }
+
+    function moveUp(event) {
+        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.y) {
+            player.accel.y -= PLAYER_ACCEL;
+        }
+    }
+
+    function moveDown(event) {
+        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.y) {
+            player.accel.y += PLAYER_ACCEL;
+        }
+    }
+
+    function moveLeft(event) {
+        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.x) {
+            player.accel.x -= PLAYER_ACCEL;
+        }
+    }
+
+    function moveRight(event) {
+        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.x) {
+            player.accel.x += PLAYER_ACCEL;
         }
     }
 
@@ -1025,7 +1136,15 @@ var PlayerController = (function() {
         };
 
         // Register the mouse and keyboard listeners
-        $(canvas).mousemove(updatePosition);
+        KeyboardCat.register(KeyboardCat.KEYCODES.UP, moveUp, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.DOWN, moveDown, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, moveLeft, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, moveRight, { raw: true, keyDown : true });
+
+        KeyboardCat.register(KeyboardCat.KEYCODES.UP, stopY, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.DOWN, stopY, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, stopX, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, stopX, { raw: true, keyUp : true });
 
         // Reset the player data
         reset();
@@ -1035,6 +1154,7 @@ var PlayerController = (function() {
 
     return {
         setSpriteScaling : setSpriteScaling,
+        updatePosition   : updatePosition,
         hit              : hit,
         score            : score,
         reset            : reset
@@ -1056,8 +1176,9 @@ $.domReady(function() {
     // Tie the Player reset to the Overlord start event
     $(Overlord).on('start.overlord', PlayerController.reset);
 
-    // Tie the Overlord to the Picaso Tick event
+    // Tie to the Picaso Tick event
     $(Picaso).on('tick.picaso', Overlord.tock);
+    $(Picaso).on('tick.picaso', PlayerController.updatePosition);
 
     // Tie all the relevant parties to the Overlord for pausing/resuming
     $(Overlord).on('pause.overlord', Picaso.pause);
