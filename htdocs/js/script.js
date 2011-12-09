@@ -301,54 +301,76 @@ var Picaso = (function(){
         ctx.fillStyle = "#000";
     }
 
-    function paintObjects(delta, now) {
+    function isValidObject(object) {
+        var pos = {
+            x : (object.x * quality) | 0,
+            y : (object.y * quality) | 0
+        };
+
+        var size = object.size;
+
+        if (object.sprite) {
+            var sprite = object.sprite;
+
+            size = {
+                height : (sprite.height * quality * SPRITE_SCALING) | 0,
+                width  : (sprite.width  * quality * SPRITE_SCALING) | 0
+            };
+
+            pos.x = pos.x - (size.width/2.0 | 0);
+            pos.y = pos.y - (size.height/2.0 | 0);
+        } else {
+            size.height = (size.height * quality) | 0;
+            size.width  = (size.width  * quality) | 0;
+        }
+
+        var out = {
+            x   : false,
+            y   : false
+        };
+
+        if (((pos.x + size.width/2.0) | 0) > canvasSize.width) {
+            out.x = true;
+        }
+
+        if (((pos.y + size.height/2.0) | 0) > canvasSize.height) {
+            out.y = true;
+        }
+
+        if (pos.x < -(size.width/2.0)) {
+            out.x = true;
+        }
+
+        if (pos.y < -(size.height/2.0)) {
+            out.y = true;
+        }
+
+        if (object.ttl === 0) {
+            return false;
+        }
+
+        return !(out.x && out.y);
+    }
+
+    function cleanupObjects() {
         // Clear out of bounds objects
-        objects = $.reject(objects, function(item) {
-            var pos = {
-                x : (item.x * quality) | 0,
-                y : (item.y * quality) | 0
-            };
+        var validObjects = [];
 
-            var size = item.size;
-
-            if (item.sprite) {
-                var sprite = item.sprite;
-
-                size = {
-                    height : (sprite.height * quality * SPRITE_SCALING) | 0,
-                    width  : (sprite.width  * quality * SPRITE_SCALING) | 0
-                };
-
-                pos.x = pos.x - (size.width/2.0 | 0);
-                pos.y = pos.y - (size.height/2.0 | 0);
-            } else {
-                size.height = (size.height * quality) | 0;
-                size.width  = (size.width  * quality) | 0;
+        for (var i = 0; i < objects.length; i++) {
+            if (objects[i].ttl) {
+                objects[i].ttl--;
             }
 
-            var out = {
-                x : false,
-                y : false
-            };
-
-            if (((pos.x + size.width/2.0) | 0) > canvasSize.width) {
-                out.x = true;
+            if (isValidObject(objects[i])) {
+                validObjects.push(objects[i]);
             }
+        }
 
-            if (((pos.y + size.height/2.0) | 0) > canvasSize.height) {
-                out.y = true;
-            }
+        return validObjects;
+    }
 
-            if (pos.x < -(size.width/2.0)) {
-                out.x = true;
-            }
-
-            if (pos.y < -(size.height/2.0)) {
-                out.y = true;
-            }
-
-            return (out.x && out.y);
-        });
+    function paintObjects(delta, now) {
+        objects = cleanupObjects();
 
         // Paint the objects
         $(objects).each(function(item, num) {
@@ -463,9 +485,15 @@ var Picaso = (function(){
     }
 
     function removeObject(id) {
-        objects = $.reject(objects, function(o) {
-            return o.id == this.id;
-        }, { id : id });
+        var validObjects = [];
+
+        for (var i = 0; i < objects.length; i++) {
+            if (objects[i].id != id) {
+                validObjects.push(objects[i]);
+            }
+        }
+
+        objects = validObjects;
     }
 
     function addObject(item) {
@@ -676,18 +704,19 @@ var Overlord = (function() {
 
             // TODO: vary the enemies
             var enemy = {
-                x : canvasSize.width,
-                y : pos,
+                x      : canvasSize.width,
+                y      : pos,
                 sprite : enemySprite,
-                vel : {
-                    x : -ENEMY_SPEED,
-                    y : 0,
+                size   : enemySpriteSize,
+                vel    : {
+                    x   : -ENEMY_SPEED,
+                    y   : 0,
                     top : {
                         x : ENEMY_MAX_SPEED,
                         y : ENEMY_MAX_SPEED
                     }
                 },
-                accel : {
+                accel  : {
                     x : -ENEMY_ACCEL,
                     y : 0
                 }
@@ -723,7 +752,7 @@ var Overlord = (function() {
         enemies = validEnemies;
     }
 
-    function generateBullets(player, delta, now) {
+    function updateBullets(player, delta, now) {
         // Update bullet position and clean those outside the screen
         var validBullets = [];
 
@@ -746,6 +775,7 @@ var Overlord = (function() {
         bullets = validBullets;
 
         // Generate new bullet
+        // TODO: generate the bullets even if the screen isn't refreshed
         // TODO: different types of bullets based on a powerup
         if (now - bulletsLastUpdate > FIRE_RATE) {
             var bullet = {
@@ -774,12 +804,38 @@ var Overlord = (function() {
         }
     }
 
+    function isColliding(item, object) {
+        // check collisions with object (Code provided by Antonio Lopes [http://www.antoniolopes.info])
+        // TODO: stop using a circle
+        var a  = (item.size.width + object.size.width) * 0.30,
+            dx = (item.x | 0) - (object.x | 0),
+            dy = (item.y | 0) - (object.y | 0);
+
+        return a * a > dx * dx + dy * dy;
+    }
+
+    function checkCollisions(player, delta, now) {
+        var validEnemies = [];
+
+        for (var i = 0; i < enemies.length; i++) {
+            if (isColliding(enemies[i], player)) {
+                console.log("HIT!");
+                Picaso.removeObject(enemies[i].id);
+
+                $(Overlord).trigger('hit.overlord', player);
+            } else {
+                validEnemies.push(enemies[i]);
+            }
+        }
+
+        enemies = validEnemies;
+    }
+
     function tock(event) {
         if (running && !paused) {
             updateEnemies(event.delta, event.now);
-            generateBullets(player, event.delta, event.now);
-
-            // TODO: check collisions
+            updateBullets(player, event.delta, event.now);
+            checkCollisions(player, event.delta, event.now);
         }
     }
 
@@ -834,18 +890,12 @@ var Overlord = (function() {
     }
 
     function updatePlayer(data) {
-        // TODO: figure out why data is empty some times
         player = data;
 
-        var playerObject = {
-            id     : 'player-' + data.number,
-            x      : data.x,
-            y      : data.y,
-            sprite : data.sprite
-        };
+        player.id = 'player-' + data.number;
 
         // TODO: remove this hard dependency and use an event
-        Picaso.addObject(playerObject);
+        player.id = Picaso.addObject(player);
     }
 
     function start(file) {
@@ -968,11 +1018,12 @@ var Overlord = (function() {
     $.domReady(init);
 
     return {
-        updatePlayer    : updatePlayer,
-        generateEnemies : generateEnemies,
-        tock            : tock,
-        isPaused        : isPaused,
-        isRunning       : isRunning
+        setSpriteScaling : setSpriteScaling,
+        updatePlayer     : updatePlayer,
+        generateEnemies  : generateEnemies,
+        tock             : tock,
+        isPaused         : isPaused,
+        isRunning        : isRunning
     };
 })();
 
@@ -1114,6 +1165,8 @@ var PlayerController = (function() {
     function hit() {
         player.life--;
 
+        updateLife();
+
         if (player.life <= 0) {
             $(PlayerController).trigger('died.player', player);
         }
@@ -1203,8 +1256,12 @@ $.domReady(function() {
     $(Overlord).on('resume.overlord', AudioProcessor.resume);
     $(Overlord).on('abort.overlord', AudioProcessor.abort);
 
+    // Check the hits
+    $(Overlord).on('hit.overlord', PlayerController.hit);
+
     // Set the sprite scaling on the PlayerController (so bounds can be checked)
     PlayerController.setSpriteScaling(Picaso.SPRITE_SCALING);
+    Overlord.setSpriteScaling(Picaso.SPRITE_SCALING);
 });
 
 // Google Analytics
