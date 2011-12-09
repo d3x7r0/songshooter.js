@@ -161,6 +161,8 @@ var KeyboardCat = (function() {
 
 // The physics module
 var Newton = (function(){
+    var INERTIA = 0.75;
+
     function calculateVelocity(velocity, acceleration, delta) {
         return velocity + acceleration * delta;
     }
@@ -173,11 +175,11 @@ var Newton = (function(){
         var tmp = object;
 
         if (object.accel.x === 0) {
-            tmp.vel.x = tmp.vel.x / 2.0;
+            tmp.vel.x = tmp.vel.x * INERTIA;
         }
 
         if (object.accel.y === 0) {
-            tmp.vel.y = tmp.vel.y / 2.0;
+            tmp.vel.y = tmp.vel.y * INERTIA;
         }
 
         // Calculate the target speed
@@ -789,23 +791,44 @@ var Overlord = (function() {
         return running;
     }
 
-    function togglePause(event) {
+    function pause(event) {
         if (event) {
             event.stopPropagation();
             event.preventDefault();
         }
 
+        if (running && !paused) {
+            paused = true;
+
+            $(Overlord).trigger('pause.overlord');
+
+            $('#screen').css('cursor', '');
+            $('#controls ul .pause a').text('Resume Game');
+        }
+    }
+
+    function resume(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
+        if (running && paused) {
+            paused = false;
+
+            $(Overlord).trigger('resume.overlord');
+
+            $('#screen').css('cursor', 'none');
+            $('#controls ul .pause a').text('Pause Game');
+        }
+    }
+
+    function togglePause(event) {
         if (running) {
-            paused = !paused;
-
             if (paused) {
-                $(Overlord).trigger('pause.overlord');
-
-                $('#screen').css('cursor', '');
+                resume(event);
             } else {
-                $(Overlord).trigger('resume.overlord');
-
-                $('#screen').css('cursor', 'none');
+                pause(event);
             }
         }
     }
@@ -922,6 +945,9 @@ var Overlord = (function() {
             width  : enemySprite.width | 0
         };
 
+        // Pause the game when window looses focus
+        $(document).on('blur', pause);
+
         // Register the keyboard listeners
         KeyboardCat.register(KeyboardCat.KEYCODES.PAUSE, togglePause);
         $('#controls ul .pause').click(togglePause);
@@ -957,7 +983,7 @@ var PlayerController = (function() {
         MAX_LIFE         = 10,
         LIFE_CHARACTER   = '&#x2764;',
         PLAYER_ACCEL     = 1.0/1000.0,
-        PLAYER_MAX_SPEED = 1.0;
+        PLAYER_MAX_SPEED = 0.5;
 
     var playerSprite,
         playerSpriteSize,
@@ -967,7 +993,8 @@ var PlayerController = (function() {
         canvasOffset,
         canvasSize;
 
-    var running = false;
+    var running  = false,
+        movement = [];
 
     var player;
 
@@ -979,6 +1006,21 @@ var PlayerController = (function() {
         }
 
         $('#controls .life .value').html(life);
+    }
+
+    function stop(event) {
+        if (event && event.keyCode) {
+            movement[event.keyCode] = 0;
+        } else {
+            movement[KeyboardCat.KEYCODES.UP]    = 0;
+            movement[KeyboardCat.KEYCODES.DOWN]  = 0;
+            movement[KeyboardCat.KEYCODES.LEFT]  = 0;
+            movement[KeyboardCat.KEYCODES.RIGHT] = 0;
+        }
+    }
+
+    function move(event) {
+        movement[event.keyCode] = PLAYER_ACCEL;
     }
 
     function reset() {
@@ -1004,6 +1046,9 @@ var PlayerController = (function() {
             }
         };
 
+        // Reset the movement values
+        stop();
+
         updateLife();
 
         $(PlayerController).trigger('moved.player', player);
@@ -1021,82 +1066,48 @@ var PlayerController = (function() {
         player.size = playerSpriteSize;
     }
 
-    // TODO: improve the stop functions
-    function stopY(event) {
-        if (Overlord.isRunning() && !Overlord.isPaused()) {
-            player.accel.y = 0;
-        }
-    }
-
-    function stopX(event) {
-        if (Overlord.isRunning() && !Overlord.isPaused()) {
-            player.accel.x = 0;
-        }
-    }
-
     function checkBounds() {
         // check the bounds
         if (player.x - playerSpriteSize.width/2 < 0) {
             player.x = playerSpriteSize.width/2;
 
-            stopX();
+            player.accel.x = 0;
             player.vel.x = 0;
         }
 
         if (player.x > canvasSize.width - playerSpriteSize.width/2) {
             player.x = canvasSize.width - playerSpriteSize.width/2;
 
-            stopX();
+            player.accel.x = 0;
             player.vel.x = 0;
         }
 
         if (player.y > canvasSize.height - playerSpriteSize.height/2) {
             player.y = canvasSize.height - playerSpriteSize.height/2;
 
-            stopY();
+            player.accel.y = 0;
             player.vel.y = 0;
         }
 
         if (player.y - playerSpriteSize.height/2 < 0) {
             player.y = playerSpriteSize.height/2;
 
-            stopY();
+            player.accel.y = 0;
             player.vel.y = 0;
         }
     }
 
     function updatePosition(event) {
         if (Overlord.isRunning() && !Overlord.isPaused()) {
+            player.accel.x = movement[KeyboardCat.KEYCODES.RIGHT] - movement[KeyboardCat.KEYCODES.LEFT];
+            player.accel.y = movement[KeyboardCat.KEYCODES.DOWN] - movement[KeyboardCat.KEYCODES.UP];
+
             player = Newton.move2D(player, event.delta);
 
             // check the bounds
             checkBounds();
 
             $(PlayerController).trigger('moved.player', player);
-        }
-    }
-
-    function moveUp(event) {
-        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.y) {
-            player.accel.y -= PLAYER_ACCEL;
-        }
-    }
-
-    function moveDown(event) {
-        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.y) {
-            player.accel.y += PLAYER_ACCEL;
-        }
-    }
-
-    function moveLeft(event) {
-        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.x) {
-            player.accel.x -= PLAYER_ACCEL;
-        }
-    }
-
-    function moveRight(event) {
-        if (Overlord.isRunning() && !Overlord.isPaused() && !player.accel.x) {
-            player.accel.x += PLAYER_ACCEL;
         }
     }
 
@@ -1136,15 +1147,17 @@ var PlayerController = (function() {
         };
 
         // Register the mouse and keyboard listeners
-        KeyboardCat.register(KeyboardCat.KEYCODES.UP, moveUp, { raw: true, keyDown : true });
-        KeyboardCat.register(KeyboardCat.KEYCODES.DOWN, moveDown, { raw: true, keyDown : true });
-        KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, moveLeft, { raw: true, keyDown : true });
-        KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, moveRight, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.UP, move, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.DOWN, move, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, move, { raw: true, keyDown : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, move, { raw: true, keyDown : true });
 
-        KeyboardCat.register(KeyboardCat.KEYCODES.UP, stopY, { raw: true, keyUp : true });
-        KeyboardCat.register(KeyboardCat.KEYCODES.DOWN, stopY, { raw: true, keyUp : true });
-        KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, stopX, { raw: true, keyUp : true });
-        KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, stopX, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.UP, stop, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.DOWN, stop, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, stop, { raw: true, keyUp : true });
+        KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, stop, { raw: true, keyUp : true });
+
+        $(document).on('blur', stop);
 
         // Reset the player data
         reset();
