@@ -192,11 +192,11 @@ var Newton = (function(){
                 y_mult = (tmp.vel.y >= 0) ? 1.0 : -1.0;
 
             if (tmp.vel.x * x_mult > object.vel.top.x) {
-                tmp.vel.x   = object.vel.top.x * x_mult;
+                tmp.vel.x = object.vel.top.x * x_mult;
             }
 
             if (tmp.vel.y * y_mult > object.vel.top.y) {
-                tmp.vel.y   = object.vel.top.y * y_mult;
+                tmp.vel.y = object.vel.top.y * y_mult;
             }
         }
 
@@ -301,77 +301,7 @@ var Picaso = (function(){
         ctx.fillStyle = "#000";
     }
 
-    function isValidObject(object) {
-        var pos = {
-            x : (object.x * quality) | 0,
-            y : (object.y * quality) | 0
-        };
-
-        var size = object.size;
-
-        if (object.sprite) {
-            var sprite = object.sprite;
-
-            size = {
-                height : (sprite.height * quality * SPRITE_SCALING) | 0,
-                width  : (sprite.width  * quality * SPRITE_SCALING) | 0
-            };
-
-            pos.x = pos.x - (size.width/2.0 | 0);
-            pos.y = pos.y - (size.height/2.0 | 0);
-        } else {
-            size.height = (size.height * quality) | 0;
-            size.width  = (size.width  * quality) | 0;
-        }
-
-        var out = {
-            x   : false,
-            y   : false
-        };
-
-        if (((pos.x + size.width/2.0) | 0) > canvasSize.width) {
-            out.x = true;
-        }
-
-        if (((pos.y + size.height/2.0) | 0) > canvasSize.height) {
-            out.y = true;
-        }
-
-        if (pos.x < -(size.width/2.0)) {
-            out.x = true;
-        }
-
-        if (pos.y < -(size.height/2.0)) {
-            out.y = true;
-        }
-
-        if (object.ttl === 0) {
-            return false;
-        }
-
-        return !(out.x && out.y);
-    }
-
-    function cleanupObjects() {
-        // Clear out of bounds objects
-        var validObjects = [];
-
-        for (var i = 0; i < objects.length; i++) {
-            if (objects[i].ttl) {
-                objects[i].ttl--;
-            }
-
-            if (isValidObject(objects[i])) {
-                validObjects.push(objects[i]);
-            }
-        }
-
-        return validObjects;
-    }
-
     function paintObjects(delta, now) {
-        objects = cleanupObjects();
-
         // Paint the objects
         $(objects).each(function(item, num) {
             var pos = {
@@ -389,21 +319,40 @@ var Picaso = (function(){
                     width  : (sprite.width  * quality * SPRITE_SCALING) | 0
                 };
 
-                pos.x = pos.x - (size.width/2.0 | 0);
-                pos.y = pos.y - (size.height/2.0 | 0);
+                pos = {
+                    x : pos.x - (size.width/2.0 | 0),
+                    y : pos.y - (size.height/2.0 | 0)
+                };
 
                 ctx.drawImage(sprite, pos.x, pos.y, size.width, size.height);
             } else {
-                size.height = (size.height * 1.0/quality) | 0;
-                size.width  = (size.width  * 1.0/quality) | 0;
+                size = {
+                    height : (size.height * quality) | 0,
+                    width  : (size.width  * quality) | 0
+                };
 
-                pos.x = pos.x - (size.width/2.0 | 0);
-                pos.y = pos.y - (size.height/2.0 | 0);
+                pos = {
+                    x : pos.x - (size.width/2.0 | 0),
+                    y : pos.y - (size.height/2.0 | 0)
+                };
 
                 ctx.fillStyle = item.fillStyle || "rgb(0,0,0)";
 
                 ctx.fillRect(pos.x, pos.y, size.width, size.height);
             }
+
+            // show hitboxes
+            // TODO: make a switch different from the fps one
+            if (showFps) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.arc(item.x * quality | 0, item.y * quality | 0, size.width/2.0 | 0,
+                        0, Math.PI*2, true);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#000';
+            }
+
         });
     }
 
@@ -499,7 +448,7 @@ var Picaso = (function(){
     function addObject(item) {
         if (!item.id) {
             // use a generated id
-            item.id = uids + '-' + (Math.random()*1000 | 0);
+            item.id = uids + '-' + (Math.random()*1000000 | 0);
 
             uids++;
         } else {
@@ -583,6 +532,8 @@ var AudioProcessor = (function(){
         worker.postMessage(data);
 
         audioElement.play();
+
+        $(AudioProcessor).trigger('start.audio', data);
     }
 
     function onAudioAvailable(event) {
@@ -618,6 +569,8 @@ var AudioProcessor = (function(){
 
         // Restore the idle state
         idle = true;
+
+        $(AudioProcessor).trigger('end.audio');
 
         // Restart the vis
         start(data);
@@ -661,12 +614,14 @@ var AudioProcessor = (function(){
 
 // The module that oversees the game execution
 var Overlord = (function() {
-    var FIRE_RATE       = 100,
-        BULLET_SPEED    = 1.0/100.0,
-        ENEMY_MAX_SPEED = 0.5,
-        ENEMY_SPEED     = 0.3,
-        ENEMY_ACCEL     = 1.0/10000.0,
-        ENEMY_SPRITE    = 'img/ship2.svg';
+    var FIRE_RATE        = 100,
+        BULLET_SPEED     = 2.0/60.0,
+        BULLET_MAX_SPEED = BULLET_SPEED,
+        ENEMY_MAX_SPEED  = 0.5,
+        ENEMY_SPEED      = 0.3,
+        ENEMY_ACCEL      = 1.0/10000.0,
+        ENEMY_SPRITE     = 'img/ship2.svg',
+        BASE_SCORE       = 1;
 
     var running = false,
         paused  = false;
@@ -722,9 +677,6 @@ var Overlord = (function() {
                 }
             };
 
-            // TODO: remove this hard dependency and use an event
-            enemy.id = Picaso.addObject(enemy);
-
             enemies.push(enemy);
         }
     }
@@ -740,12 +692,6 @@ var Overlord = (function() {
             // Clean those outside the screen
             if (enemies[i].x > -enemySpriteSize.width) {
                 validEnemies.push(enemies[i]);
-
-                // TODO: remove this hard dependency and use an event
-                Picaso.addObject(enemies[i]);
-            } else {
-                // TODO: remove this hard dependency and use an event
-                Picaso.removeObject(enemies[i].id);
             }
         }
 
@@ -763,12 +709,6 @@ var Overlord = (function() {
             // Clean those outside the screen
             if (bullets[i].x <= canvasSize.width) {
                 validBullets.push(bullets[i]);
-
-                // TODO: remove this hard dependency and use an event
-                Picaso.addObject(bullets[i]);
-            } else {
-                // TODO: remove this hard dependency and use an event
-                Picaso.removeObject(bullets[i].id);
             }
         }
 
@@ -786,8 +726,12 @@ var Overlord = (function() {
                     height : 5
                 },
                 vel : {
-                    x : 0,
-                    y : 0
+                    x   : 0,
+                    y   : 0,
+                    top : {
+                        x : BULLET_MAX_SPEED,
+                        y : 0
+                    }
                 },
                 accel : {
                     x : BULLET_SPEED,
@@ -795,19 +739,19 @@ var Overlord = (function() {
                 }
             };
 
-            // TODO: remove this hard dependency and use an event
-            bullet.id = Picaso.addObject(bullet);
-
             bullets.push(bullet);
 
             bulletsLastUpdate = Date.now();
         }
     }
 
+    var canvas = $('#screen')[0],
+        ctx    = canvas.getContext('2d');
+
     function isColliding(item, object) {
         // check collisions with object (Code provided by Antonio Lopes [http://www.antoniolopes.info])
         // TODO: stop using a circle
-        var a  = (item.size.width + object.size.width) * 0.30,
+        var a  = (item.size.width + object.size.width) * 0.50,
             dx = (item.x | 0) - (object.x | 0),
             dy = (item.y | 0) - (object.y | 0);
 
@@ -818,13 +762,32 @@ var Overlord = (function() {
         var validEnemies = [];
 
         for (var i = 0; i < enemies.length; i++) {
+            // Check if enemies are colliding with the player
             if (isColliding(enemies[i], player)) {
-                console.log("HIT!");
-                Picaso.removeObject(enemies[i].id);
-
                 $(Overlord).trigger('hit.overlord', player);
             } else {
-                validEnemies.push(enemies[i]);
+                // check if any bullets are colliding with an enemy
+                var hit          = null,
+                    validBullets = [];
+
+                for (var j = 0; j < bullets.length && !hit; j++) {
+                    if (isColliding(enemies[i], bullets[j])) {
+                        hit = bullets[j];
+                    } else {
+                        validBullets.push(bullets[j]);
+                    }
+                }
+
+                bullets = validBullets;
+
+                if (hit) {
+                    $(Overlord).trigger('score.overlord', {
+                        player : player.number,
+                        value  : BASE_SCORE
+                    });
+                } else {
+                    validEnemies.push(enemies[i]);
+                }
             }
         }
 
@@ -836,6 +799,16 @@ var Overlord = (function() {
             updateEnemies(event.delta, event.now);
             updateBullets(player, event.delta, event.now);
             checkCollisions(player, event.delta, event.now);
+
+            Picaso.cleanObjects();
+            Picaso.addObject(player);
+            for (var i = 0; i < bullets.length; i++) {
+                Picaso.addObject(bullets[i]);
+            }
+
+            for (var i = 0; i < enemies.length; i++) {
+                Picaso.addObject(enemies[i]);
+            }
         }
     }
 
@@ -1076,7 +1049,7 @@ var PlayerController = (function() {
 
     function reset() {
         player = {
-            x      : canvasSize.width/2 + 5,
+            x      : playerSpriteSize.width,
             y      : canvasSize.height/2,
             score  : 0,
             life   : DEFAULT_LIFE,
@@ -1162,21 +1135,35 @@ var PlayerController = (function() {
         }
     }
 
+    function updateScore() {
+        $('#controls .score .value').text(player.score);
+    }
+
     function hit() {
         player.life--;
 
         updateLife();
 
         if (player.life <= 0) {
+            // Cut the score in half as a penalty for dying
+            var score = player.score/2;
+
+            reset();
+
+            player.score = score;
+            updateScore();
+
             $(PlayerController).trigger('died.player', player);
         }
 
         $(PlayerController).trigger('life.player', player);
     }
 
-    function score(value) {
-        if (value > 0) {
-            player.score += value;
+    function score(data) {
+        if (data && data.value > 0) {
+            player.score += data.value;
+
+            updateScore();
         }
     }
 
@@ -1258,6 +1245,7 @@ $.domReady(function() {
 
     // Check the hits
     $(Overlord).on('hit.overlord', PlayerController.hit);
+    $(Overlord).on('score.overlord', PlayerController.score);
 
     // Set the sprite scaling on the PlayerController (so bounds can be checked)
     PlayerController.setSpriteScaling(Picaso.SPRITE_SCALING);
