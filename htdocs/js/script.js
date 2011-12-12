@@ -770,9 +770,9 @@ var Overlord = (function() {
                 var hit          = null,
                     validBullets = [];
 
-                for (var j = 0; j < bullets.length && !hit; j++) {
+                for (var j = 0; j < bullets.length; j++) {
                     if (isColliding(enemies[i], bullets[j])) {
-                        hit = bullets[j];
+                        hit = true;
                     } else {
                         validBullets.push(bullets[j]);
                     }
