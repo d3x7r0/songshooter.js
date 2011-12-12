@@ -5,81 +5,87 @@
 
 importScripts('libs/dsp.js', 'libs/beatdetektor.js');
 
-var MAX_BEATS = 30,
-    COLOR_MAX = 2.5,
-    RGB_MAX   = 250.0,
-    RGB_MIN   = 120.0;
+var MAX_BEATS      = 30,
+    MIN_BEATS      = 5,
+    RGB_MAX        = 250.0,
+    RGB_MIN        = 120.0,
+    MAX_ENEMIES    = 3,
+    SPECTRUM_SPLIT = 3;
 
-var idle = false;
+var idle        = false,
+    beats       = 0,
+    numBeats    = MAX_BEATS,
+    enemies     = [],
+    last_update = 0,
+    prob        = [],
+    audio,
+    fft,
+    canvasBG    = {
+        red   : RGB_MIN,
+        green : RGB_MIN,
+        blue  : RGB_MIN
+    };
 
-var bd,
-    fft;
+var console = (function() {
+    return {
+        log : function(text) {
+            postMessage({
+                log : text
+            });
+        }
+    }
+})();
 
-var ftimer   = 0,
-    spectrum = [],
-    beats    = [];
+function calculateEnemies(color) {
+    var numEnemies = 0,
+        i          = 1;
 
-var audio;
+    for (var k in color) {
+        if (color.hasOwnProperty(k)) {
+            var num = prob.length-1,
+                found      = false;
 
-var MAX_ENEMIES     = 5,
-    ENEMIES_AVERAGE = 10;
+            while(num > 0 && !found) {
+                if (color[k] > prob[numEnemies]) {
+                    found = true;
+                } else {
+                    num--;
+                }
+            }
 
-var values  = [],
-    counter = 0;
+            numEnemies += num/i;
 
-var prob = [];
-
-function calculateEnemies(average) {
-    var numEnemies = prob.length-1,
-        found      = false;
-
-    while(numEnemies > 0 && !found) {
-        if (average > prob[numEnemies]) {
-            found = true;
-        } else {
-            numEnemies--;
+            i = i++;
         }
     }
 
     return numEnemies;
 }
 
-function calculateBackground(value) {
-    // TODO: rework the equations to make the COLOR_MAX variable work for the green value
+function calculateBackground(spectrum) {
     var color = {
-        red   : 2.0 * value - COLOR_MAX,
-        green : COLOR_MAX * Math.sin(COLOR_MAX * value - Math.PI/(COLOR_MAX*2)),
-        blue  : COLOR_MAX - (COLOR_MAX * 0.5) * value
+        red   : 0,
+        green : 0,
+        blue  : 0
     };
+
+    var div = spectrum.length / 3 | 0;
+
+    for (var i = 0; i <= div; i++) {
+        color.red   += spectrum[i];
+        color.green += spectrum[i + div];
+        color.blue  += spectrum[i + 2 * div];
+    }
 
     for (var k in color) {
         if (color.hasOwnProperty(k)) {
-            if (color[k] > COLOR_MAX) {
-                color[k] = COLOR_MAX;
-            } else if (color[k] < 0.0) {
-                color[k] = 0.0;
-            }
-
-            color[k] = Math.round(color[k]*(RGB_MAX-RGB_MIN)/COLOR_MAX)+RGB_MIN;
+            color[k] = color[k] * (RGB_MAX-RGB_MIN) + RGB_MIN | 0;
         }
     }
 
     return color;
 }
 
-function calculateAverage(list, length) {
-    var average = 0;
-
-    length = length || list.length;
-
-    for(var i = 0; i < length; i++) {
-        average += list[i];
-    }
-
-    return average/length;
-}
-
-// Inspired by: http://wiki.mozilla.org/Audio_Data_API
 function process(data) {
     var response = {};
 
@@ -98,39 +104,29 @@ function process(data) {
 
     response.spectrum = fft.spectrum;
 
-    bd.process(data.time, fft.spectrum);
+    last_update += data.time;
 
-    ftimer += bd.last_update;
-
-    var average = 0;
-
-    if (ftimer > 1.0/30.0) {
-        var max = Math.max.apply(Math, response.spectrum) * 10.0;
-
-        if (beats.length >= MAX_BEATS) {
-            beats.shift();
-        }
-
-        beats.push(max);
-
-        average = calculateAverage(beats);
-
-        response.canvasBG = calculateBackground(average);
+    if (last_update > 1.0/30.0) {
+        canvasBG          = calculateBackground(fft.spectrum);
+        response.canvasBG = canvasBG;
     }
 
     if (!idle) {
-        counter++;
+        beats++;
 
-        var numEnemies = calculateEnemies(average);
-        values.push(numEnemies);
+        var numEnemies = calculateEnemies(canvasBG);
+        enemies.push(numEnemies);
 
-        if (counter == ENEMIES_AVERAGE) {
-            response.numEnemies = calculateAverage(values) | 0;
+        console.log(numBeats);
+        if (beats == numBeats) {
+            numBeats = Math.random()*(MAX_BEATS-MIN_BEATS) + MIN_BEATS | 0;
 
-            values  = [];
-            counter = 0;
+            response.numEnemies = numEnemies;
+            enemies = [];
+            beats = 0;
         }
     }
+
 
     postMessage(response);
 }
@@ -139,15 +135,10 @@ function setup(data) {
     idle  = data.idle;
     audio = data.audio;
 
-    for (var i = 0; i < MAX_BEATS; i++) {
-        beats[i] = 0;
-    }
-
-    bd  = new BeatDetektor();
     fft = new FFT(audio.frameBufferLength / audio.channels, audio.rate);
 
-    for (var i = 0; i < MAX_ENEMIES; i++) {
-        prob[i] = i * COLOR_MAX / MAX_ENEMIES;
+    for(var i = 0; i <= MAX_ENEMIES; i++) {
+        prob[i] = i * (RGB_MAX-RGB_MIN) / MAX_ENEMIES + RGB_MIN;
     }
 }
 

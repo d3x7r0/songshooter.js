@@ -506,7 +506,13 @@ var AudioProcessor = (function(){
         idle    = false;
 
     function onWorkerMessage(event) {
-        $(AudioProcessor).trigger('spectrum.audio', event.data.spectrum);
+        if (event.log) {
+            console.log(event.log);
+        }
+
+        if (event.data.spectrum) {
+            $(AudioProcessor).trigger('spectrum.audio', event.data.spectrum);
+        }
 
         if (event.data.canvasBG) {
             $(AudioProcessor).trigger('canvasbg.audio', event.data.canvasBG);
@@ -1262,6 +1268,7 @@ $.domReady(function() {
     $(Overlord).on('pause.overlord', Picaso.pause);
     $(Overlord).on('resume.overlord', Picaso.resume);
     $(Overlord).on('abort.overlord', Picaso.cleanObjects);
+    $(Overlord).on('abort.overlord', Picaso.resume);
 
     $(Overlord).on('start.overlord', AudioProcessor.start);
     $(Overlord).on('pause.overlord', AudioProcessor.pause);
