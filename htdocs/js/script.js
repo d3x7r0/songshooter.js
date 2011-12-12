@@ -614,8 +614,7 @@ var AudioProcessor = (function(){
 
 // The module that oversees the game execution
 var Overlord = (function() {
-    var FIRE_RATE        = 100,
-        BULLET_SPEED     = 2.0/60.0,
+    var BULLET_SPEED     = 2.0/60.0,
         BULLET_MAX_SPEED = BULLET_SPEED,
         ENEMY_MAX_SPEED  = 0.5,
         ENEMY_SPEED      = 0.3,
@@ -648,6 +647,35 @@ var Overlord = (function() {
             height : enemySprite.height * spriteScaling | 0,
             width  : enemySprite.width  * spriteScaling | 0
         };
+    }
+
+    function generateBullets(player) {
+        // Generate new bullet
+        // TODO: generate the bullets even if the screen isn't refreshed
+        // TODO: mark the bullet with the player number for scoring purposes
+        // TODO: different types of bullets based on a powerup
+        var bullet = {
+            x    : player.x + player.size.width/2,
+            y    : player.y,
+            size : {
+                width  : 5,
+                height : 5
+            },
+            vel : {
+                x   : 0,
+                y   : 0,
+                top : {
+                    x : BULLET_MAX_SPEED,
+                    y : 0
+                }
+            },
+            accel : {
+                x : BULLET_SPEED,
+                y : 0
+            }
+        };
+
+        bullets.push(bullet);
     }
 
     function generateEnemies(data) {
@@ -713,36 +741,6 @@ var Overlord = (function() {
         }
 
         bullets = validBullets;
-
-        // Generate new bullet
-        // TODO: generate the bullets even if the screen isn't refreshed
-        // TODO: different types of bullets based on a powerup
-        if (now - bulletsLastUpdate > FIRE_RATE) {
-            var bullet = {
-                x    : player.x + player.size.width/2,
-                y    : player.y,
-                size : {
-                    width  : 5,
-                    height : 5
-                },
-                vel : {
-                    x   : 0,
-                    y   : 0,
-                    top : {
-                        x : BULLET_MAX_SPEED,
-                        y : 0
-                    }
-                },
-                accel : {
-                    x : BULLET_SPEED,
-                    y : 0
-                }
-            };
-
-            bullets.push(bullet);
-
-            bulletsLastUpdate = Date.now();
-        }
     }
 
     var canvas = $('#screen')[0],
@@ -751,7 +749,7 @@ var Overlord = (function() {
     function isColliding(item, object) {
         // check collisions with object (Code provided by Antonio Lopes [http://www.antoniolopes.info])
         // TODO: stop using a circle
-        var a  = (item.size.width + object.size.width) * 0.50,
+        var a  = (item.size.width + object.size.width)/2.0 * 0.50,
             dx = (item.x | 0) - (object.x | 0),
             dy = (item.y | 0) - (object.y | 0);
 
@@ -972,6 +970,7 @@ var Overlord = (function() {
         $(document).on('blur', pause);
 
         // Register the keyboard listeners
+        KeyboardCat.register(KeyboardCat.KEYCODES.ESC, togglePause);
         KeyboardCat.register(KeyboardCat.KEYCODES.PAUSE, togglePause);
         $('#controls ul .pause').click(togglePause);
 
@@ -996,18 +995,20 @@ var Overlord = (function() {
         generateEnemies  : generateEnemies,
         tock             : tock,
         isPaused         : isPaused,
-        isRunning        : isRunning
+        isRunning        : isRunning,
+        fire             : generateBullets
     };
 })();
 
 // The module responsible for controlling the player
 var PlayerController = (function() {
     var PLAYER_SPRITE    = 'img/ship1.svg',
-        DEFAULT_LIFE     = 3,
+        DEFAULT_LIFE     = 5,
         MAX_LIFE         = 10,
         LIFE_CHARACTER   = '&#x2764;',
         PLAYER_ACCEL     = 1.0/1000.0,
-        PLAYER_MAX_SPEED = 0.5;
+        PLAYER_MAX_SPEED = 0.5,
+        FIRE_RATE        = 100;
 
     var playerSprite,
         playerSpriteSize,
@@ -1167,6 +1168,26 @@ var PlayerController = (function() {
         }
     }
 
+    var fireController = null;
+
+    function fire() {
+        $(PlayerController).trigger('fire.player', player);
+        fireController = setTimeout(fire, FIRE_RATE);
+    }
+
+    function startFiring(event) {
+        if (!fireController) {
+            fire();
+        }
+    }
+
+    function stopFiring(event) {
+        if (fireController) {
+            window.clearTimeout(fireController);
+            fireController = null;
+        }
+    }
+
     function init() {
         // Load the sprites
         playerSprite     = new Image();
@@ -1197,7 +1218,11 @@ var PlayerController = (function() {
         KeyboardCat.register(KeyboardCat.KEYCODES.LEFT, stop, { raw: true, keyUp : true });
         KeyboardCat.register(KeyboardCat.KEYCODES.RIGHT, stop, { raw: true, keyUp : true });
 
+        KeyboardCat.register('S', startFiring, { raw: true, keyDown: true });
+        KeyboardCat.register('S', stopFiring, { raw: true, keyUp: true });
+
         $(document).on('blur', stop);
+        $(document).on('blur', stopFiring);
 
         // Reset the player data
         reset();
@@ -1246,6 +1271,8 @@ $.domReady(function() {
     // Check the hits
     $(Overlord).on('hit.overlord', PlayerController.hit);
     $(Overlord).on('score.overlord', PlayerController.score);
+
+    $(PlayerController).on('fire.player', Overlord.fire);
 
     // Set the sprite scaling on the PlayerController (so bounds can be checked)
     PlayerController.setSpriteScaling(Picaso.SPRITE_SCALING);
