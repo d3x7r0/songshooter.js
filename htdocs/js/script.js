@@ -1146,7 +1146,7 @@ var PlayerController = (function() {
 
         if (player.life <= 0) {
             // Cut the score in half as a penalty for dying
-            var score = player.score/2;
+            var score = player.score/2 | 0;
 
             reset();
 
