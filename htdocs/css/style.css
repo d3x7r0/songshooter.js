@@ -55,6 +55,17 @@ footer{text-align:right;font-style:italic;}
 #controls .score,#controls .life{text-align:right;}#controls .score .value,#controls .life .value{display:inline-block;}
 #controls .score .value{min-width:16em;}
 #controls .life .value{min-width:11.2em;}
+#help{position:absolute;top:0;left:0;width:100%;height:100%;font-size:3em;line-height:1.3em;margin:0;padding:0;list-style:none;}#help li,#help ul{position:absolute;display:block;}
+#help .key{display:block;width:2em;height:2em;color:#000;border:0.15em solid #000;background:#fff;-moz-box-shadow:8px 5px 5px rgba(0, 0, 0, 0.4);box-shadow:8px 5px 5px rgba(0, 0, 0, 0.4);text-align:center;line-height:2em;-moz-border-radius:12px;border-radius:12px;opacity:0.5;}
+#help .value{display:none;}
+#help .movement{bottom:2em;right:0;}#help .movement .value{bottom:-1.3em;right:40%;}
+#help .shoot{top:1em;left:1em;}#help .shoot .value{bottom:0;left:30%;}
+#help .shoot .value,#help .movement>.value{font-size:0.75em;line-height:1.3em;display:block;position:relative;opacity:0.75;text-shadow:-1px -1px 0 #000000,1px -1px 0 #000000,-1px 1px 0 #000000,1px 1px 0 #000000;}
+#help .down,#help .right,#help .left{bottom:0;}
+#help .right{right:0;}
+#help .down,#help .up{right:2.5em;}
+#help .left{right:5em;}
+#help .up{bottom:2.5em;}
 html,body{font:10px/1.3em Helvetica,Arial,sans-serif;}
 body{margin:2em 0 0 0;}
 .grid_1{width:6em;}

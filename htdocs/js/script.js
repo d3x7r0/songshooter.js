@@ -883,7 +883,7 @@ var Overlord = (function() {
 
         $('#screen').css('cursor', 'none');
         $('#controls .ingame').show();
-        $('#start_menu').hide();
+        $('#start_menu, #help').hide();
 
         currentFile = file;
 
@@ -906,7 +906,7 @@ var Overlord = (function() {
 
         $('#screen').css('cursor', '');
         $('#controls .ingame').hide();
-        $('#start_menu').show();
+        $('#start_menu, #help').show();
 
         $(Overlord).trigger('abort.overlord');
     }

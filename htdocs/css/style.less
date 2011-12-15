@@ -109,6 +109,98 @@ footer { text-align: right; font-style: italic; }
     }
 }
 
+#help {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 3em;
+    line-height: 1.3em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li, ul {
+        position: absolute;
+        display: block;
+    }
+
+    .key {
+        display: block;
+        width: 2em;
+        height: 2em;
+        color: #000;
+        border: 0.15em solid #000;
+        background: #fff;
+        -moz-box-shadow: 8px 5px 5px rgba(0,0,0,0.4);
+        box-shadow: 8px 5px 5px rgba(0,0,0,0.4);
+        text-align: center;
+        line-height: 2em;
+        -moz-border-radius: 12px;
+        border-radius: 12px;
+        opacity: 0.5;
+    }
+
+    .value {
+        display: none;
+    }
+
+    .movement {
+        bottom: 2em;
+        right: 0;
+
+        .value {
+            bottom: -1.3em;
+            right: 40%;
+        }
+    }
+
+    .shoot {
+        top: 1em;
+        left: 1em;
+
+        .value {
+            bottom: 0;
+            left: 30%;
+        }
+    }
+
+    .shoot .value,
+    .movement > .value {
+        font-size: 0.75em;
+        line-height: 1.3em;
+        display: block;
+        position: relative;
+        opacity: 0.75;
+        text-shadow:
+            -1px -1px 0 #000,
+             1px -1px 0 #000,
+            -1px  1px 0 #000,
+             1px  1px 0 #000;
+    }
+
+    .down, .right, .left {
+        bottom: 0;
+    }
+
+    .right {
+        right: 0;
+    }
+
+    .down, .up {
+        right: 2em + 0.5em;
+    }
+
+    .left {
+        right: (2em + 0.5em)*2;
+    }
+
+    .up {
+        bottom: 2em + 0.5em;
+    }
+}
+
 @import url('grid.less');
 
 @import url('reset2.less');
