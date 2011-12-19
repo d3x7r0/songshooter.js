@@ -1,0 +1,14 @@
+### Song Shooter
+
+This is a simple javascript game that loads a given ogg file and generates enemies and the background from it's analysis.
+
+Currently it only works on Firefox 4.0 or above. No Webkit support so far since the code uses the mozilla specific Audio API Extensions. A port to the Web Audio API is in the plans but it takes time.
+
+This was built quickly for a College course so it's not much more than a tech demo at the moment.
+
+# Libraries used
+* ender
+* underscore
+* dsp.js
+* beatdetektor.js
+
